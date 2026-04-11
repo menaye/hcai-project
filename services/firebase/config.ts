@@ -1,30 +1,41 @@
 /**
  * Firebase configuration
  *
- * Values are read from EXPO_PUBLIC_* environment variables.
- * Copy .env.example → .env and fill in your Firebase project values.
+ * MOCK_MODE is active when EXPO_PUBLIC_FIREBASE_API_KEY is absent or set to 'mock'.
+ * In mock mode, Firebase is never initialized — all operations are handled by
+ * the in-memory mock layer in services/mock/. This lets the app run fully
+ * without any credentials configured.
  *
- * Firebase free tier (Spark plan) limits used by this app:
- *  - Firestore: 1 GiB storage, 50k reads/day, 20k writes/day
- *  - Auth: unlimited (email/password + anonymous)
+ * To connect real Firebase: copy .env.example → .env and fill in values.
  */
 
-import { initializeApp, getApps, getApp } from 'firebase/app';
-import { getFirestore } from 'firebase/firestore';
-import { getAuth } from 'firebase/auth';
+import { initializeApp, getApps, getApp, FirebaseApp } from 'firebase/app';
+import { getFirestore, Firestore } from 'firebase/firestore';
+import { getAuth, Auth } from 'firebase/auth';
 
-const firebaseConfig = {
-  apiKey: process.env.EXPO_PUBLIC_FIREBASE_API_KEY,
-  authDomain: process.env.EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN,
-  projectId: process.env.EXPO_PUBLIC_FIREBASE_PROJECT_ID,
-  storageBucket: process.env.EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET,
-  messagingSenderId: process.env.EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
-  appId: process.env.EXPO_PUBLIC_FIREBASE_APP_ID,
-};
+const apiKey = process.env.EXPO_PUBLIC_FIREBASE_API_KEY;
 
-// Prevent duplicate app initialization (hot reload safety)
-const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
+/** True when running without real Firebase credentials */
+export const MOCK_MODE = !apiKey || apiKey === 'mock' || apiKey === 'your_firebase_api_key';
 
-export const db = getFirestore(app);
-export const auth = getAuth(app);
-export default app;
+let _app: FirebaseApp | null = null;
+let _db: Firestore | null = null;
+let _auth: Auth | null = null;
+
+if (!MOCK_MODE) {
+  const firebaseConfig = {
+    apiKey,
+    authDomain: process.env.EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN,
+    projectId: process.env.EXPO_PUBLIC_FIREBASE_PROJECT_ID,
+    storageBucket: process.env.EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET,
+    messagingSenderId: process.env.EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
+    appId: process.env.EXPO_PUBLIC_FIREBASE_APP_ID,
+  };
+  _app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
+  _db = getFirestore(_app);
+  _auth = getAuth(_app);
+}
+
+export const db = _db as Firestore;
+export const auth = _auth as Auth;
+export default _app as FirebaseApp;

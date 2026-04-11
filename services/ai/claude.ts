@@ -15,11 +15,17 @@
 
 import Anthropic from '@anthropic-ai/sdk';
 import type { AITaskBreakdown } from '../../types';
+import { mockDecomposeTask, mockRegenerateStep, mockGetEncouragement } from '../mock/mockAI';
 
-const client = new Anthropic({
-  apiKey: process.env.EXPO_PUBLIC_ANTHROPIC_API_KEY,
-  dangerouslyAllowBrowser: true, // Required for React Native / Expo
-});
+const apiKey = process.env.EXPO_PUBLIC_ANTHROPIC_API_KEY;
+const AI_MOCK_MODE = !apiKey || apiKey === 'your_anthropic_api_key_here';
+
+const client = AI_MOCK_MODE
+  ? null
+  : new Anthropic({
+      apiKey,
+      dangerouslyAllowBrowser: true, // Required for React Native / Expo
+    });
 
 const MODEL = 'claude-haiku-4-5-20251001'; // Fast, cost-effective for interactive use
 
@@ -48,6 +54,8 @@ export async function decomposeTask(
   taskDescription: string,
   userContext?: string,
 ): Promise<AITaskBreakdown> {
+  if (AI_MOCK_MODE) return mockDecomposeTask(taskTitle);
+
   const userMessage = `
 Assignment: ${taskTitle}
 ${taskDescription ? `Details: ${taskDescription}` : ''}
@@ -66,7 +74,7 @@ Break this into 4–6 concrete, specific steps. Return ONLY this JSON (no markdo
   "motivationalNote": "One sentence acknowledging this might feel hard but reframing it as doable. Ground it in the specific task."
 }`;
 
-  const response = await client.messages.create({
+  const response = await client!.messages.create({
     model: MODEL,
     max_tokens: 1024,
     messages: [{ role: 'user', content: userMessage }],
@@ -112,7 +120,9 @@ export async function regenerateStep(
   stepTitle: string,
   reason?: string,
 ): Promise<{ title: string; detail: string; estimatedMinutes: number }> {
-  const response = await client.messages.create({
+  if (AI_MOCK_MODE) return mockRegenerateStep(stepTitle);
+
+  const response = await client!.messages.create({
     model: MODEL,
     max_tokens: 256,
     messages: [
@@ -143,7 +153,9 @@ export async function getStepEncouragement(
   completedStep: string,
   stepsRemaining: number,
 ): Promise<string> {
-  const response = await client.messages.create({
+  if (AI_MOCK_MODE) return mockGetEncouragement(completedStep, stepsRemaining);
+
+  const response = await client!.messages.create({
     model: MODEL,
     max_tokens: 128,
     messages: [
