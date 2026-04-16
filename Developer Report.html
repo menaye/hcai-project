@@ -1,0 +1,407 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Human.exe Developer Status Report</title>
+<style>
+  body { font-family: Calibri, Arial, sans-serif; font-size: 11pt; margin: 1in; color: #1a1a1a; line-height: 1.5; }
+  h1 { font-size: 20pt; color: #2C5F8A; border-bottom: 2px solid #2C5F8A; padding-bottom: 6pt; margin-bottom: 4pt; }
+  h2 { font-size: 14pt; color: #2C5F8A; margin-top: 18pt; margin-bottom: 4pt; border-bottom: 1px solid #C8DFF0; }
+  h3 { font-size: 12pt; color: #444; margin-top: 12pt; margin-bottom: 2pt; }
+  .meta { color: #666; font-size: 10pt; margin-bottom: 18pt; }
+  table { border-collapse: collapse; width: 100%; margin: 8pt 0 14pt 0; }
+  th { background: #2C5F8A; color: white; padding: 6pt 8pt; text-align: left; font-size: 10pt; }
+  td { padding: 5pt 8pt; border: 1px solid #ddd; font-size: 10pt; vertical-align: top; }
+  tr:nth-child(even) td { background: #F5F9FD; }
+  .badge-done { background: #2E7D32; color: white; padding: 1pt 6pt; border-radius: 4pt; font-size: 9pt; }
+  .badge-partial { background: #E65100; color: white; padding: 1pt 6pt; border-radius: 4pt; font-size: 9pt; }
+  .badge-stub { background: #9E9E9E; color: white; padding: 1pt 6pt; border-radius: 4pt; font-size: 9pt; }
+  ul { margin: 4pt 0; padding-left: 18pt; }
+  li { margin: 2pt 0; }
+  code { font-family: Courier New, monospace; background: #F0F4F8; padding: 1pt 4pt; border-radius: 3pt; font-size: 9.5pt; }
+  .section-note { background: #FFF8E1; border-left: 4px solid #FFB300; padding: 6pt 10pt; margin: 8pt 0; font-size: 10pt; }
+  p { margin: 4pt 0 8pt 0; }
+</style>
+</head>
+<body>
+
+<h1>Human.exe -- Developer Status Report</h1>
+<div class="meta">
+  Project: Human.exe Academic Companion App &nbsp;|&nbsp;
+  Date: April 16, 2026 &nbsp;|&nbsp;
+  Platform: React Native + Expo SDK 54 &nbsp;|&nbsp;
+  Team: Michael Enaye, Jialin Fu, Jaya Surya V.M., Billy Presume, Yuting Yan
+</div>
+
+<h2>1. Overview</h2>
+<p>Human.exe is a cross-platform iOS/Android mobile app designed to help Johns Hopkins University students overcome procrastination by reducing the psychological barrier to task initiation. The core mechanic is AI-powered task decomposition: given a vague assignment, the AI breaks it down into 4-6 small, concrete, immediately actionable steps. The research basis is 52 surveys and 9 interviews at JHU showing that initiation (not time management) is the primary barrier to academic productivity.</p>
+
+<table>
+  <tr><th>Attribute</th><th>Value</th></tr>
+  <tr><td>Framework</td><td>React Native 0.76 + Expo SDK 54</td></tr>
+  <tr><td>Navigation</td><td>Expo Router v4 (file-based)</td></tr>
+  <tr><td>State management</td><td>Zustand</td></tr>
+  <tr><td>Backend</td><td>Firebase Firestore + Auth (Spark free tier)</td></tr>
+  <tr><td>Default AI</td><td>DeepSeek V3 via OpenAI-compatible API</td></tr>
+  <tr><td>Supported AI providers</td><td>DeepSeek, Anthropic Claude, OpenAI, Ollama (local), Mock</td></tr>
+  <tr><td>Language</td><td>TypeScript (strict mode)</td></tr>
+  <tr><td>Build</td><td>Expo Go / EAS Build</td></tr>
+</table>
+
+<h2>2. Feature Implementation Status</h2>
+
+<table>
+  <tr>
+    <th>Feature</th>
+    <th>Status</th>
+    <th>Location</th>
+    <th>Notes</th>
+  </tr>
+  <tr>
+    <td>Firebase Auth (email + anonymous guest)</td>
+    <td><span class="badge-done">Done</span></td>
+    <td><code>services/firebase/auth.ts</code></td>
+    <td>Guest accounts, email/password. Google OAuth not yet wired up.</td>
+  </tr>
+  <tr>
+    <td>Firestore CRUD for tasks and steps</td>
+    <td><span class="badge-done">Done</span></td>
+    <td><code>services/firebase/firestore.ts</code></td>
+    <td>Real-time listeners. Full CRUD for tasks and steps.</td>
+  </tr>
+  <tr>
+    <td>MOCK_MODE (in-memory data, no backend)</td>
+    <td><span class="badge-done">Done</span></td>
+    <td><code>services/mock/store.ts</code></td>
+    <td>Full mock Firestore + Auth + AI. Activated via <code>services/firebase/config.ts</code>. Smart mock AI handles task management (complete/pause/activate/queue), greetings, motivation, and task queries. Redirects general knowledge questions to Settings with a clear message.</td>
+  </tr>
+  <tr>
+    <td>Persistent chat FAB (all tabs)</td>
+    <td><span class="badge-done">Done</span></td>
+    <td><code>app/(tabs)/_layout.tsx</code></td>
+    <td>Floating action button rendered at the tab layout level, so it persists across Home, Tasks, Timeline, Stats, and Settings tabs. Positioned above the tab bar.</td>
+  </tr>
+  <tr>
+    <td>AI task decomposition (4-6 steps)</td>
+    <td><span class="badge-done">Done</span></td>
+    <td><code>app/task/new.tsx</code>, <code>services/ai/</code></td>
+    <td>3-phase flow: enter task, AI generates, user confirms. Rejection handling for off-topic inputs.</td>
+  </tr>
+  <tr>
+    <td>Multi-provider AI architecture</td>
+    <td><span class="badge-done">Done</span></td>
+    <td><code>services/ai/factory.ts</code>, <code>services/ai/providers/</code></td>
+    <td>Strategy pattern. DeepSeek (default), Anthropic, OpenAI, Ollama, Mock. All OpenAI-compatible providers share a single base class.</td>
+  </tr>
+  <tr>
+    <td>DeepSeek as default AI provider</td>
+    <td><span class="badge-done">Done</span></td>
+    <td><code>services/ai/providers/deepseek.ts</code></td>
+    <td>Uses <code>deepseek-chat</code> model via <code>https://api.deepseek.com</code>. Falls back to Mock if no API key is set.</td>
+  </tr>
+  <tr>
+    <td>AI step regeneration</td>
+    <td><span class="badge-done">Done</span></td>
+    <td><code>app/task/[id].tsx</code></td>
+    <td>Long-press step to get AI alternative. Reason optional.</td>
+  </tr>
+  <tr>
+    <td>Step encouragement messages</td>
+    <td><span class="badge-done">Done</span></td>
+    <td><code>app/task/[id].tsx</code></td>
+    <td>AI-generated one-liner on step completion.</td>
+  </tr>
+  <tr>
+    <td>AI chat companion (Sid)</td>
+    <td><span class="badge-done">Done</span></td>
+    <td><code>app/chat.tsx</code></td>
+    <td>Free-form chat with full task context (IDs, statuses) injected as system context. AI can update task status via <code>[TASK_OP:{...}]</code> action blocks parsed and executed automatically. Shows setup banner when in mock mode directing users to Settings. Conversation history maintained per session (not persisted).</td>
+  </tr>
+  <tr>
+    <td>Task creation flow (3 phases)</td>
+    <td><span class="badge-done">Done</span></td>
+    <td><code>app/task/new.tsx</code></td>
+    <td>Phase 1: enter title + description + due date + priority + target date + reward. Phase 2: AI generates. Phase 3: confirm and edit steps.</td>
+  </tr>
+  <tr>
+    <td>Task states (active/inactive/queued/completed/abandoned)</td>
+    <td><span class="badge-done">Done</span></td>
+    <td><code>types/index.ts</code>, <code>app/(tabs)/tasks.tsx</code></td>
+    <td>All 5 states persisted in Firestore. Tappable status chip on TaskCard for quick state changes.</td>
+  </tr>
+  <tr>
+    <td>Tappable status chip (inline status change)</td>
+    <td><span class="badge-done">Done</span></td>
+    <td><code>components/task/TaskCard.tsx</code>, <code>app/(tabs)/tasks.tsx</code></td>
+    <td>Tapping the status chip opens an action sheet to change state directly from the task list.</td>
+  </tr>
+  <tr>
+    <td>Step completion + uncheck</td>
+    <td><span class="badge-done">Done</span></td>
+    <td><code>app/task/[id].tsx</code></td>
+    <td>Tap to toggle. First step completion triggers "You've started!" celebration card.</td>
+  </tr>
+  <tr>
+    <td>Task and step editing from detail screen</td>
+    <td><span class="badge-done">Done</span></td>
+    <td><code>app/task/[id].tsx</code></td>
+    <td>Edit task title, description, due date, target date. Edit step title via long-press.</td>
+  </tr>
+  <tr>
+    <td>Home screen (greeting, mascot, active task)</td>
+    <td><span class="badge-done">Done</span></td>
+    <td><code>app/(tabs)/index.tsx</code></td>
+    <td>Contextual greeting, streak badge, current task card, other tasks strip, completed-today count. Chat FAB is now provided by the tab layout (persistent on all tabs).</td>
+  </tr>
+  <tr>
+    <td>Sloth mascot (Sid)</td>
+    <td><span class="badge-done">Done</span></td>
+    <td><code>components/mascot/HumanMascot.tsx</code></td>
+    <td>Cute cartoon sloth with dark eye-patch fur, earthy gradient body, long arms. Blink, bob, scale (happy), and rock (thinking) animations. 4 states: idle, thinking, happy, encouraging. Smile rendered via overflow:hidden arc-clip technique (cross-platform, no SVG required).</td>
+  </tr>
+  <tr>
+    <td>Tasks tab with filter chips</td>
+    <td><span class="badge-done">Done</span></td>
+    <td><code>app/(tabs)/tasks.tsx</code></td>
+    <td>Filters: Active, Queued, Done, Paused, All. Long-press for more status actions. Tappable chip for quick status changes.</td>
+  </tr>
+  <tr>
+    <td>Timeline -- List view</td>
+    <td><span class="badge-done">Done</span></td>
+    <td><code>app/(tabs)/timeline.tsx</code></td>
+    <td>Chronological timeline with status indicators and step counts.</td>
+  </tr>
+  <tr>
+    <td>Timeline -- Week view</td>
+    <td><span class="badge-done">Done</span></td>
+    <td><code>app/(tabs)/timeline.tsx</code></td>
+    <td>7-day horizontal strip with navigation, task dots, and selected-day task list.</td>
+  </tr>
+  <tr>
+    <td>Timeline -- Month calendar view</td>
+    <td><span class="badge-done">Done</span></td>
+    <td><code>app/(tabs)/timeline.tsx</code></td>
+    <td>Full monthly grid. Selected-date circle is now a centered fixed-size (34x34) inner View, fixing the centering bug. Task dots below each date number.</td>
+  </tr>
+  <tr>
+    <td>Stats page</td>
+    <td><span class="badge-done">Done</span></td>
+    <td><code>app/(tabs)/stats.tsx</code></td>
+    <td>Hero gradient card (completion rate), donut arc chart (two-semicircle trick, no SVG), 7-day bar chart, streak display, 2x2 breakdown grid. Robinhood-inspired clean layout.</td>
+  </tr>
+  <tr>
+    <td>Settings -- AI provider + API key config</td>
+    <td><span class="badge-done">Done</span></td>
+    <td><code>app/(tabs)/settings.tsx</code></td>
+    <td>Provider picker modal (DeepSeek, Anthropic, OpenAI, Ollama, Mock). API key entry for keyed providers. Keys stored in memory (not persisted across app restarts).</td>
+  </tr>
+  <tr>
+    <td>Settings -- Preferences (focus mode, haptics, priority)</td>
+    <td><span class="badge-done">Done</span></td>
+    <td><code>app/(tabs)/settings.tsx</code></td>
+    <td>Toggle switches and priority chip selector. In-memory via Zustand.</td>
+  </tr>
+  <tr>
+    <td>Settings -- Profile editing</td>
+    <td><span class="badge-done">Done</span></td>
+    <td><code>app/(tabs)/settings.tsx</code></td>
+    <td>Edit name, email, and personal context (used by AI for task personalization).</td>
+  </tr>
+  <tr>
+    <td>Offline banner</td>
+    <td><span class="badge-done">Done</span></td>
+    <td><code>components/ui/OfflineBanner.tsx</code></td>
+    <td>Animated slide-down banner polling connectivity every 15 seconds. Skipped in MOCK_MODE.</td>
+  </tr>
+  <tr>
+    <td>Streak tracking</td>
+    <td><span class="badge-done">Done</span></td>
+    <td><code>store/taskStore.ts</code>, <code>components/task/StreakBadge.tsx</code></td>
+    <td>Current streak, longest streak, total tasks and steps completed. Displayed in home and timeline screens.</td>
+  </tr>
+  <tr>
+    <td>Focus Mode</td>
+    <td><span class="badge-partial">Partial</span></td>
+    <td><code>app/task/[id].tsx</code></td>
+    <td>UI toggle exists. When enabled, minimizes distracting metadata. The <code>focusModeDefault</code> setting controls auto-enable but the setting is not yet read at screen load time.</td>
+  </tr>
+  <tr>
+    <td>Haptic feedback on step completion</td>
+    <td><span class="badge-partial">Partial</span></td>
+    <td><code>app/task/[id].tsx</code></td>
+    <td>The <code>hapticFeedback</code> preference is stored but the actual <code>Haptics.impactAsync()</code> call is not yet wired to the setting toggle. Haptics fire unconditionally currently.</td>
+  </tr>
+  <tr>
+    <td>Task priority (low/medium/high/urgent)</td>
+    <td><span class="badge-done">Done</span></td>
+    <td><code>app/task/new.tsx</code>, <code>components/task/TaskCard.tsx</code></td>
+    <td>Set during task creation. Displayed as a colored badge on task cards.</td>
+  </tr>
+  <tr>
+    <td>Due date and personal target date</td>
+    <td><span class="badge-done">Done</span></td>
+    <td><code>app/task/new.tsx</code>, <code>app/task/[id].tsx</code></td>
+    <td>Both dates set at creation and editable from task detail. Formatted as relative time on cards.</td>
+  </tr>
+  <tr>
+    <td>Reward / incentive field</td>
+    <td><span class="badge-partial">Partial</span></td>
+    <td><code>app/task/new.tsx</code></td>
+    <td>Input field collected during task creation and stored. Not currently displayed anywhere after creation -- no reward reminder or completion celebration screen yet.</td>
+  </tr>
+  <tr>
+    <td>Persistent settings (across app restarts)</td>
+    <td><span class="badge-stub">Not done</span></td>
+    <td><code>store/settingsStore.ts</code></td>
+    <td>All settings live in-memory Zustand only. AsyncStorage is not installed. API keys and preferences reset on app restart. Adding <code>zustand/middleware</code> persist + AsyncStorage would fix this.</td>
+  </tr>
+  <tr>
+    <td>Google OAuth sign-in</td>
+    <td><span class="badge-stub">Not done</span></td>
+    <td>N/A</td>
+    <td>Auth screen UI exists but only email/password and guest flows are wired. Google provider is configured in Firebase but Expo AuthSession integration is not implemented.</td>
+  </tr>
+  <tr>
+    <td>Push notifications (task reminders)</td>
+    <td><span class="badge-stub">Not done</span></td>
+    <td>N/A</td>
+    <td>Not started. Would require <code>expo-notifications</code> + a scheduled notification per task due date.</td>
+  </tr>
+  <tr>
+    <td>Chat history persistence</td>
+    <td><span class="badge-stub">Not done</span></td>
+    <td><code>app/chat.tsx</code></td>
+    <td>Chat messages are in-component state and lost on navigation. Could be stored in Zustand or Firestore.</td>
+  </tr>
+</table>
+
+<h2>3. Architecture Overview</h2>
+
+<h3>File Structure (key paths)</h3>
+<ul>
+  <li><code>app/(tabs)/</code> -- The 5 tab screens: Home, Tasks, Timeline, Stats, Settings</li>
+  <li><code>app/task/new.tsx</code> -- 3-phase AI task creation modal</li>
+  <li><code>app/task/[id].tsx</code> -- Task detail + step management</li>
+  <li><code>app/chat.tsx</code> -- AI chat companion screen</li>
+  <li><code>services/ai/</code> -- Provider interface, factory, all provider implementations</li>
+  <li><code>services/firebase/</code> -- Firestore and Auth wrappers</li>
+  <li><code>services/mock/</code> -- Full in-memory backend for offline/demo use</li>
+  <li><code>store/</code> -- Zustand stores: authStore, taskStore, settingsStore</li>
+  <li><code>components/mascot/HumanMascot.tsx</code> -- Animated sloth mascot (Sid)</li>
+  <li><code>constants/</code> -- colors.ts, spacing.ts, typography.ts (design tokens)</li>
+</ul>
+
+<h3>AI Provider Architecture</h3>
+<p>All AI providers implement the <code>AIProvider</code> interface from <code>services/ai/types.ts</code>:</p>
+<ul>
+  <li><code>decomposeTask(title, description, context?)</code></li>
+  <li><code>regenerateStep(taskTitle, stepTitle, reason?)</code></li>
+  <li><code>getStepEncouragement(taskTitle, completedStep, stepsLeft)</code></li>
+  <li><code>chat(messages, systemContext?)</code></li>
+</ul>
+<p><code>OpenAIProvider</code> is the base class for DeepSeek and Ollama. Both override only the constructor (setting baseUrl and model). The factory (<code>services/ai/factory.ts</code>) reads <code>settingsStore</code> and returns the correct implementation at call time, enabling live provider switching.</p>
+
+<h3>Data Flow</h3>
+<ol>
+  <li>App start: <code>useAuth()</code> hook initializes Firebase listener, populates <code>authStore</code>.</li>
+  <li>Task load: <code>useTasks()</code> hook subscribes to Firestore, populates <code>taskStore</code>.</li>
+  <li>MOCK_MODE: Firebase and AI calls are intercepted by in-memory mock implementations.</li>
+  <li>Task creation: <code>new.tsx</code> calls <code>decomposeTask()</code> from <code>services/ai/claude.ts</code> facade, which delegates to <code>getAIProvider()</code>.</li>
+  <li>Task and step CRUD: all screens call <code>updateTask()</code>/<code>updateStep()</code> from <code>services/firebase/firestore.ts</code>, which updates Firestore. The real-time listener updates <code>taskStore</code>, triggering re-renders.</li>
+</ol>
+
+<h2>4. Known Issues and Gaps</h2>
+
+<table>
+  <tr><th>Issue</th><th>Impact</th><th>Recommended Fix</th></tr>
+  <tr>
+    <td>Settings not persisted across restarts</td>
+    <td>High: API keys must be re-entered every session</td>
+    <td>Add <code>expo-secure-store</code> (for API keys) + <code>@react-native-async-storage/async-storage</code> + Zustand persist middleware</td>
+  </tr>
+  <tr>
+    <td>focusModeDefault setting not applied at screen load</td>
+    <td>Low: preference toggle does nothing currently</td>
+    <td>In <code>app/task/[id].tsx</code>, initialize <code>focusMode</code> state from <code>useSettingsStore().focusModeDefault</code></td>
+  </tr>
+  <tr>
+    <td>Haptics always fire regardless of hapticFeedback toggle</td>
+    <td>Low: annoying for users who disable it</td>
+    <td>Gate the <code>Haptics.impactAsync()</code> call behind <code>if (settings.hapticFeedback)</code></td>
+  </tr>
+  <tr>
+    <td>Reward field stored but never shown after task creation</td>
+    <td>Medium: reduces the motivational impact of the feature</td>
+    <td>Show the reward string on the task completion screen or as a reminder on the task detail screen</td>
+  </tr>
+  <tr>
+    <td>Chat history lost on navigation</td>
+    <td>Low: conversation not preserved between visits</td>
+    <td>Move chat messages to a Zustand chatStore or a lightweight Firestore subcollection</td>
+  </tr>
+  <tr>
+    <td>Mock mode banner only in chat — not in task creation</td>
+    <td>Low: task creation flow does not tell user they are on mock AI</td>
+    <td>Show the same setup banner in <code>app/task/new.tsx</code> during the AI generation phase</td>
+  </tr>
+  <tr>
+    <td>No push notification support</td>
+    <td>Medium: reduces engagement</td>
+    <td>Add <code>expo-notifications</code>. Schedule a local notification when a task due date is set.</td>
+  </tr>
+  <tr>
+    <td>No Google OAuth</td>
+    <td>Low for MVP: guest + email covers the demo</td>
+    <td>Add <code>expo-auth-session</code> + Google provider in Firebase console</td>
+  </tr>
+  <tr>
+    <td>Stats page reads from in-memory taskStore only</td>
+    <td>Low: data is correct but if store is cold, charts show empty</td>
+    <td>Ensure <code>useTasks()</code> hook always runs before stats renders (it does via root layout)</td>
+  </tr>
+</table>
+
+<h2>5. Configuration Notes</h2>
+
+<h3>Running the App</h3>
+<ul>
+  <li>Install: <code>npm install</code></li>
+  <li>Start: <code>npx expo start</code></li>
+  <li>Set <code>MOCK_MODE = true</code> in <code>services/firebase/config.ts</code> for offline development (no Firebase project needed)</li>
+  <li>Set <code>EXPO_PUBLIC_ANTHROPIC_API_KEY</code> in <code>.env</code> to enable Anthropic in dev without entering a key manually</li>
+</ul>
+
+<h3>AI Setup for DeepSeek (recommended)</h3>
+<ol>
+  <li>Create an account at <code>platform.deepseek.com</code></li>
+  <li>Generate an API key</li>
+  <li>In the app: Settings > AI Provider > DeepSeek > API Key</li>
+  <li>The <code>deepseek-chat</code> model (DeepSeek-V3) is the default and performs well on task decomposition</li>
+</ol>
+
+<h3>Environment Variables</h3>
+<table>
+  <tr><th>Variable</th><th>Purpose</th></tr>
+  <tr><td><code>EXPO_PUBLIC_ANTHROPIC_API_KEY</code></td><td>Optional Anthropic key loaded at build time (falls back to user-entered key in Settings)</td></tr>
+</table>
+
+<h2>6. Design System</h2>
+<p>All design tokens live in <code>constants/</code>:</p>
+<ul>
+  <li><code>colors.ts</code>: Research-backed palette. Primary blue (<code>#3D7EC4</code>) chosen for calm focus. Warm accent for encouragement. All colors have semantic aliases (textPrimary, surface, divider, etc.).</li>
+  <li><code>spacing.ts</code>: T-shirt size scale (Spacing[1] = 4px through Spacing[20] = 80px). Also exports <code>Layout</code>, <code>Radius</code>, <code>Shadow</code>.</li>
+  <li><code>typography.ts</code>: FontSize enum + Typography component with variant system (heading1-4, body, bodySmall, label, caption).</li>
+</ul>
+
+<h2>7. Testing Status</h2>
+<p>No automated tests are currently in place. The architecture is unit-testable (providers are pure classes, store is Zustand, all Firebase calls are in a separate service layer), but test infrastructure has not been set up. Recommended additions:</p>
+<ul>
+  <li>Jest + <code>@testing-library/react-native</code> for component tests</li>
+  <li>Unit tests for <code>parseTaskBreakdown()</code> in <code>services/ai/prompts.ts</code> (most critical path)</li>
+  <li>Mock provider tests for AI fallback behavior</li>
+</ul>
+
+<hr>
+<p style="color: #888; font-size: 9pt;">Updated April 16, 2026 -- Human.exe v0.3.0 -- Johns Hopkins University Intro to Human-Centered AI (Spring 2026)</p>
+</body>
+</html>

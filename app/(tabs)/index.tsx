@@ -19,7 +19,6 @@ import {
   ScrollView,
   StyleSheet,
   TouchableOpacity,
-  RefreshControl,
 } from 'react-native';
 import { router } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -43,7 +42,9 @@ export default function HomeScreen() {
   const { profile } = useAuthStore();
   const { tasks, streak } = useTaskStore();
 
-  const activeTasks = tasks.filter((t) => t.status === 'active');
+  const activeTasks = tasks
+    .filter((t) => t.status === 'active')
+    .sort((a, b) => b.updatedAt - a.updatedAt);
   const currentTask = activeTasks[0] ?? null;
   const completedToday = tasks.filter(
     (t) =>
@@ -110,7 +111,7 @@ export default function HomeScreen() {
 
         {/* Primary CTA */}
         <Button
-          label="Start something new"
+          label="Start a new task"
           onPress={() => router.push('/task/new')}
           size="lg"
           fullWidth
@@ -122,7 +123,9 @@ export default function HomeScreen() {
         {currentTask && (
           <View style={styles.section}>
             <Label color={Colors.textSecondary} style={styles.sectionLabel}>
-              IN PROGRESS
+              {currentTask.steps.some((s) => s.status === 'completed')
+                ? 'IN PROGRESS'
+                : 'UP NEXT'}
             </Label>
             <TaskCard task={currentTask} onPress={handleTaskPress} />
           </View>
@@ -157,24 +160,26 @@ export default function HomeScreen() {
         {/* Stats footer */}
         {streak && (
           <View style={styles.statsRow}>
-            <StatPill icon="checkmark-done" label={`${streak.totalTasksCompleted} done`} />
-            <StatPill icon="footsteps" label={`${streak.totalStepsCompleted} steps`} />
-            {streak.longestStreak > 0 && (
-              <StatPill icon="flame" label={`${streak.longestStreak} best streak`} />
-            )}
+            <StatPill
+              icon="checkmark-done"
+              label={`${streak.totalTasksCompleted} done`}
+              onPress={() => router.push({ pathname: '/(tabs)/tasks', params: { filter: 'completed' } })}
+            />
           </View>
         )}
       </ScrollView>
+
     </SafeAreaView>
   );
 }
 
-function StatPill({ icon, label }: { icon: string; label: string }) {
+function StatPill({ icon, label, onPress }: { icon: string; label: string; onPress?: () => void }) {
+  const Wrapper = onPress ? TouchableOpacity : View;
   return (
-    <View style={styles.statPill}>
-      <Ionicons name={icon as any} size={13} color={Colors.textSecondary} />
-      <BodySmall color={Colors.textSecondary}>{label}</BodySmall>
-    </View>
+    <Wrapper onPress={onPress} activeOpacity={0.7} style={styles.statPill}>
+      <Ionicons name={icon as any} size={13} color={onPress ? Colors.primary : Colors.textSecondary} />
+      <BodySmall color={onPress ? Colors.primary : Colors.textSecondary}>{label}</BodySmall>
+    </Wrapper>
   );
 }
 

@@ -11,11 +11,33 @@ Built for **Intro to Human-Centered AI** at Johns Hopkins University by **Human.
 Human.exe tackles procrastination at its root: the moment of initiation. Instead of another calendar or focus timer, it:
 
 1. **Accepts any assignment description** in plain language
-2. **Uses Claude AI** to decompose it into 4–6 small, concrete, immediately actionable steps
+2. **Uses AI** to decompose it into 4–6 small, concrete, immediately actionable steps
 3. **Tracks progress** as steps are completed, with real-time encouragement
 4. **Builds streaks** to reinforce the habit of starting
+5. **Focus Mode** — one-step-at-a-time view for deep work sessions
+6. **Multi-provider AI** — swap between Anthropic Claude, OpenAI, local Ollama, or mock
+7. **Stats dashboard** — beautiful charts showing completion rate, weekly activity, and streaks
+8. **Task queue** — plan ahead by queuing tasks without starting them yet
 
 **Core insight from our research:** Motivation follows action — it doesn't precede it. The app's job is to make the first action feel small enough to actually take.
+
+---
+
+## Features
+
+- AI task decomposition into 4–6 concrete steps (Anthropic / OpenAI / Ollama / Mock)
+- Focus Mode: minimal one-step-at-a-time view
+- Step-level progress tracking with undo support
+- Streak system: current streak, longest streak, step history
+- Stats screen: completion rate donut, 7-day bar chart, breakdown grid
+- Task lifecycle: Active → Queued → Paused → Completed
+- Inline step editing (long-press a step)
+- Task editing: title, deadline, personal target date
+- Priority tags (Low / Medium / High / Urgent)
+- Self-reward / consequence reminders
+- Animated mascot companion with blink, bob, and state expressions
+- Settings: AI provider picker, API key management, preference toggles
+- Full offline-capable mock mode (no credentials needed to run)
 
 ---
 
@@ -29,7 +51,7 @@ Human.exe tackles procrastination at its root: the moment of initiation. Instead
 | State management | Zustand |
 | Backend / DB | Firebase Firestore (free Spark tier) |
 | Authentication | Firebase Auth (email/password + anonymous) |
-| AI | Anthropic Claude API (`claude-haiku-4-5`) |
+| AI | Multi-provider: Anthropic Claude (`claude-sonnet-4-6` default), OpenAI, Ollama, or Mock |
 | Animations | React Native Reanimated |
 
 ---
@@ -46,9 +68,10 @@ hcai-project/
 │   │   └── onboarding.tsx      # Minimal user context collection
 │   ├── (tabs)/
 │   │   ├── index.tsx           # Home — mascot + active task
-│   │   ├── tasks.tsx           # Task list with filters
+│   │   ├── tasks.tsx           # Task list with filters (active/queued/done/paused/all)
 │   │   ├── timeline.tsx        # Progress journey view
-│   │   └── settings.tsx        # Profile + account
+│   │   ├── stats.tsx           # Stats dashboard (new)
+│   │   └── settings.tsx        # Profile + AI settings + preferences
 │   └── task/
 │       ├── new.tsx             # AI task creation (3-phase flow)
 │       └── [id].tsx            # Task detail + step completion
@@ -77,15 +100,27 @@ hcai-project/
 │
 ├── services/
 │   ├── firebase/
-│   │   ├── config.ts           # Firebase init (singleton)
+│   │   ├── config.ts           # Firebase init + MOCK_MODE flag
 │   │   ├── auth.ts             # Auth operations
-│   │   └── firestore.ts        # Data access layer
-│   └── ai/
-│       └── claude.ts           # Anthropic API integration
+│   │   └── firestore.ts        # Data access layer (real + mock)
+│   ├── ai/
+│   │   ├── claude.ts           # Facade — call this from screens
+│   │   ├── factory.ts          # Provider selection (reads settingsStore)
+│   │   ├── prompts.ts          # Shared system prompt + JSON parsers
+│   │   ├── types.ts            # AIProvider interface
+│   │   └── providers/
+│   │       ├── anthropic.ts    # Anthropic SDK provider
+│   │       ├── openai.ts       # Fetch-based OpenAI provider
+│   │       ├── ollama.ts       # Ollama (extends OpenAI, local)
+│   │       └── mock.ts         # Mock provider (no network)
+│   └── mock/
+│       ├── mockAI.ts           # Mock AI responses
+│       └── store.ts            # In-memory Firestore mock
 │
 ├── store/
 │   ├── authStore.ts            # Auth + profile state (Zustand)
-│   └── taskStore.ts            # Tasks + streak state (Zustand)
+│   ├── taskStore.ts            # Tasks + streak state (Zustand)
+│   └── settingsStore.ts        # AI provider + preferences (Zustand)
 │
 ├── hooks/
 │   ├── useAuth.ts              # Firebase auth subscriber

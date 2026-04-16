@@ -11,7 +11,7 @@
     "splash": {
       "image": "./assets/splash-icon.png",
       "resizeMode": "contain",
-      "backgroundColor": "#F8F7FF"
+      "backgroundColor": "#FAFAF9"
     },
     "ios": {
       "supportsTablet": false,
@@ -20,7 +20,7 @@
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#F8F7FF"
+        "backgroundColor": "#FAFAF9"
       },
       "package": "edu.jhu.hcai.humanexe",
       "edgeToEdgeEnabled": true,

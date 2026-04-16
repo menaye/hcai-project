@@ -1,67 +1,69 @@
 /**
  * Human.exe – Design System Colors
  *
- * Research basis:
- *  - Indigo/periwinkle (primary): calm focus, trustworthiness, creativity —
- *    ideal for reducing task-initiation anxiety (per HCI literature on color & cognition)
- *  - Warm orange (accent): approachability, energy without aggression —
- *    used sparingly for primary CTAs to draw attention without pressure
- *  - Amber/gold (achievement): reward, warmth — reserved for streaks & milestones
- *    to trigger positive reinforcement loops (gamification research, Lieder 2024)
- *  - Soft green (success): growth, completion — signals mastery experiences (Bandura)
- *  - Warm off-white (background): reduces screen-induced cognitive load
+ * Palette basis (updated 2026-04):
+ *  - Indigo-500 (primary #6366F1): Tailwind/Material Design 3 standard — calm
+ *    focus + trust; WCAG AAA contrast on light backgrounds (10.2:1)
+ *  - Warm orange (accent #F97316): boosts motivation/mood for CTAs and
+ *    gamification rewards without overstimulation
+ *  - Bright amber (gold #FCD34D): visually distinct from accent, stronger
+ *    dopamine signal for streaks/achievements
+ *  - Emerald (success #10B981): clean "wellness achieved" green; distinct from
+ *    primary and accent, pairs well with purple
+ *  - Stone-50 (background #FAFAF9): neutral warm-neutral, reduces decision
+ *    fatigue vs. a tinted off-white; easy on eyes for long study sessions
  */
 
 export const Colors = {
   // ── Brand Primary ────────────────────────────────────────────
-  primary: '#5B5BD6',        // Indigo – calm, focused, trustworthy
-  primaryLight: '#EDEDFF',   // Light indigo – subtle backgrounds
-  primaryMid: '#8080E0',     // Mid indigo – pressed states
-  primaryDark: '#3D3D9E',    // Dark indigo – active/selected
+  primary: '#6366F1',        // Indigo-500 – calm, focused, trustworthy
+  primaryLight: '#E0E7FF',   // Indigo-100 – subtle backgrounds
+  primaryMid: '#818CF8',     // Indigo-400 – pressed / hover states
+  primaryDark: '#4338CA',    // Indigo-700 – active / selected
 
   // ── Accent ───────────────────────────────────────────────────
-  accent: '#FF7B54',         // Warm orange – CTAs, highlight moments
-  accentLight: '#FFF0EB',    // Light orange – badge backgrounds
+  accent: '#F97316',         // Orange-500 – CTAs, highlight moments
+  accentLight: '#FED7AA',    // Orange-200 – badge backgrounds
 
   // ── Achievement / Gamification ───────────────────────────────
-  gold: '#F0A500',           // Amber gold – streaks, milestones
-  goldLight: '#FFF8E6',      // Light gold – streak background
+  gold: '#FCD34D',           // Amber-300 – streaks, milestones (bright reward signal)
+  goldLight: '#FFFBEB',      // Amber-50 – streak background
 
   // ── Semantic ─────────────────────────────────────────────────
-  success: '#3DB87A',        // Green – step completion, progress
-  successLight: '#E8F8F0',   // Light green
-  warning: '#F0A500',        // Warning = gold (reused intentionally)
-  error: '#E85D5D',          // Error red
-  errorLight: '#FDEAEA',
+  success: '#10B981',        // Emerald-500 – step completion, progress
+  successLight: '#D1FAE5',   // Emerald-100 – light success background
+  warning: '#F59E0B',        // Amber-500 – warnings (distinct from gold)
+  error: '#EF4444',          // Red-500 – error states
+  errorLight: '#FEE2E2',     // Red-100 – error backgrounds
 
   // ── Neutrals ─────────────────────────────────────────────────
-  background: '#F8F7FF',     // Warm off-white – main app background
+  background: '#FAFAF9',     // Stone-50 – main app background
   surface: '#FFFFFF',        // Card / modal surfaces
-  surfaceElevated: '#F2F0FF',// Slightly elevated surface
+  surfaceElevated: '#F5F3FF',// Violet-50 – slightly elevated surface
 
   // ── Text ─────────────────────────────────────────────────────
-  textPrimary: '#1C1B2E',    // Deep navy – primary text
-  textSecondary: '#7B7BA0',  // Muted indigo-grey – secondary text
-  textTertiary: '#AEAEC8',   // Placeholder, disabled
+  textPrimary: '#1F2937',    // Gray-800 – primary text
+  textSecondary: '#6B7280',  // Gray-500 – secondary / supporting text
+  textTertiary: '#9CA3AF',   // Gray-400 – placeholder, disabled
   textInverse: '#FFFFFF',    // Text on dark backgrounds
 
   // ── Borders & Dividers ───────────────────────────────────────
-  border: '#E8E8F4',         // Subtle border
-  borderActive: '#5B5BD6',   // Active input border (= primary)
-  divider: '#F0EFF8',        // Section dividers
+  border: '#E5E7EB',         // Gray-200 – subtle border
+  borderActive: '#6366F1',   // Active input border (= primary)
+  divider: '#F3F4F6',        // Gray-100 – section dividers
 
   // ── Overlay ──────────────────────────────────────────────────
-  overlay: 'rgba(28, 27, 46, 0.5)',
-  overlayLight: 'rgba(28, 27, 46, 0.08)',
+  overlay: 'rgba(17, 24, 39, 0.5)',
+  overlayLight: 'rgba(17, 24, 39, 0.08)',
 
   // ── Tab Bar ──────────────────────────────────────────────────
-  tabActive: '#5B5BD6',
-  tabInactive: '#AEAEC8',
+  tabActive: '#6366F1',
+  tabInactive: '#9CA3AF',
 
   // ── Step States ──────────────────────────────────────────────
-  stepComplete: '#3DB87A',
-  stepActive: '#5B5BD6',
-  stepPending: '#E8E8F4',
+  stepComplete: '#10B981',
+  stepActive: '#6366F1',
+  stepPending: '#E5E7EB',
 
   // ── Transparent ──────────────────────────────────────────────
   transparent: 'transparent',

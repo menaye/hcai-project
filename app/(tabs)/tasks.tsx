@@ -2,44 +2,156 @@
  * Tasks screen – To-Do list view
  *
  * Shows active tasks first, then completed.
- * From rough UI sketch (screen3): numbered list with checkboxes.
  * FAB to add a new task.
+ * Long-press a task card to edit title or delete.
  */
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   FlatList,
   StyleSheet,
   TouchableOpacity,
-  Animated,
+  Alert,
 } from 'react-native';
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors } from '../../constants/colors';
-import { Spacing, Layout, Radius, Shadow } from '../../constants/spacing';
+import { Spacing, Layout, Shadow } from '../../constants/spacing';
 import { H3, Body, Label } from '../../components/ui/Typography';
 import { Chip } from '../../components/ui/Chip';
 import { TaskCard } from '../../components/task/TaskCard';
 import { useTaskStore } from '../../store/taskStore';
+import { useAuthStore } from '../../store/authStore';
+import { updateTask, deleteTask } from '../../services/firebase/firestore';
 import type { Task } from '../../types';
 
-type Filter = 'active' | 'completed' | 'all';
+type Filter = 'active' | 'completed' | 'inactive' | 'queued' | 'all';
 
 export default function TasksScreen() {
+  const { filter: filterParam } = useLocalSearchParams<{ filter?: string }>();
   const { tasks } = useTaskStore();
-  const [filter, setFilter] = useState<Filter>('active');
+  const { user } = useAuthStore();
+  const [filter, setFilter] = useState<Filter>(
+    (filterParam as Filter) ?? 'active',
+  );
+
+  // Sync filter when navigating to this tab with a filter param
+  useEffect(() => {
+    if (filterParam && filterParam !== filter) {
+      setFilter(filterParam as Filter);
+    }
+  }, [filterParam]);
 
   const filtered = tasks.filter((t) => {
     if (filter === 'active') return t.status === 'active';
     if (filter === 'completed') return t.status === 'completed';
-    return true;
+    if (filter === 'inactive') return t.status === 'inactive';
+    if (filter === 'queued') return t.status === 'queued';
+    // 'all' excludes abandoned tasks
+    return t.status !== 'abandoned';
   });
 
   const handleTaskPress = (task: Task) => {
     router.push(`/task/${task.id}`);
   };
+
+  const handleStatusChange = (task: Task) => {
+    if (!user) return;
+    const options: { text: string; onPress?: () => void; style?: 'default' | 'cancel' | 'destructive' }[] = [];
+
+    if (task.status !== 'active') {
+      options.push({
+        text: 'Set Active',
+        onPress: () => updateTask(user.uid, task.id, { status: 'active' }),
+      });
+    }
+    if (task.status !== 'queued') {
+      options.push({
+        text: 'Set Queued',
+        onPress: () => updateTask(user.uid, task.id, { status: 'queued' }),
+      });
+    }
+    if (task.status !== 'inactive') {
+      options.push({
+        text: 'Pause',
+        onPress: () => updateTask(user.uid, task.id, { status: 'inactive' }),
+      });
+    }
+    if (task.status !== 'completed') {
+      options.push({
+        text: 'Mark Complete',
+        onPress: () => updateTask(user.uid, task.id, { status: 'completed', completedAt: Date.now() }),
+      });
+    }
+    options.push({ text: 'Cancel', style: 'cancel' });
+
+    Alert.alert('Change status', task.title, options);
+  };
+
+  const handleTaskLongPress = (task: Task) => {
+    if (!user) return;
+    const options: { text: string; onPress?: () => void; style?: 'default' | 'cancel' | 'destructive' }[] = [];
+
+    if (task.status === 'active' || task.status === 'inactive') {
+      options.push({
+        text: 'Set to Queued',
+        onPress: () => updateTask(user.uid, task.id, { status: 'queued' }),
+      });
+    }
+    if (task.status === 'queued' || task.status === 'inactive') {
+      options.push({
+        text: 'Activate',
+        onPress: () => updateTask(user.uid, task.id, { status: 'active' }),
+      });
+    }
+    if (task.status === 'active' || task.status === 'queued') {
+      options.push({
+        text: 'Pause',
+        onPress: () => updateTask(user.uid, task.id, { status: 'inactive' }),
+      });
+    }
+    if (task.status === 'inactive') {
+      options.push({
+        text: 'Reactivate',
+        onPress: () => updateTask(user.uid, task.id, { status: 'active' }),
+      });
+    }
+    options.push({
+      text: 'Delete task',
+      style: 'destructive',
+      onPress: () => confirmDelete(task),
+    });
+    options.push({ text: 'Cancel', style: 'cancel' });
+
+    Alert.alert(task.title, undefined, options);
+  };
+
+  const confirmDelete = (task: Task) => {
+    if (!user) return;
+    const completedSteps = task.steps.filter((s) => s.status === 'completed').length;
+    const warningMsg = completedSteps > 0
+      ? `You've already completed ${completedSteps} step${completedSteps > 1 ? 's' : ''} on this task. Deleting it will remove it from your timeline.`
+      : 'This will permanently remove the task and its steps.';
+
+    Alert.alert('Delete task?', warningMsg, [
+      { text: 'Keep it', style: 'cancel' },
+      {
+        text: 'Delete',
+        style: 'destructive',
+        onPress: () => deleteTask(user.uid, task.id),
+      },
+    ]);
+  };
+
+  const FILTERS: { key: Filter; label: string }[] = [
+    { key: 'active', label: 'Active' },
+    { key: 'queued', label: 'Queued' },
+    { key: 'completed', label: 'Done' },
+    { key: 'inactive', label: 'Paused' },
+    { key: 'all', label: 'All' },
+  ];
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
@@ -53,13 +165,12 @@ export default function TasksScreen() {
 
       {/* Filter chips */}
       <View style={styles.filters}>
-        {(['active', 'completed', 'all'] as Filter[]).map((f) => (
+        {FILTERS.map((f) => (
           <Chip
-            key={f}
-            label={f === 'all' ? 'All' : f === 'active' ? 'Active' : 'Done'}
-            selected={filter === f}
-            onPress={() => setFilter(f)}
-            style={styles.chip}
+            key={f.key}
+            label={f.label}
+            selected={filter === f.key}
+            onPress={() => setFilter(f.key)}
           />
         ))}
       </View>
@@ -69,7 +180,12 @@ export default function TasksScreen() {
         data={filtered}
         keyExtractor={(item) => item.id}
         renderItem={({ item }) => (
-          <TaskCard task={item} onPress={handleTaskPress} />
+          <TaskCard
+            task={item}
+            onPress={handleTaskPress}
+            onLongPress={handleTaskLongPress}
+            onStatusChange={handleStatusChange}
+          />
         )}
         contentContainerStyle={[
           styles.list,
@@ -92,14 +208,17 @@ export default function TasksScreen() {
 }
 
 function EmptyState({ filter }: { filter: Filter }) {
+  const messages: Record<Filter, string> = {
+    active: 'No active tasks.\nTap + to start something.',
+    completed: "You haven't completed any tasks yet.\nYou've got this.",
+    inactive: 'No paused tasks.',
+    queued: 'No queued tasks.\nLong-press a task to queue it.',
+    all: 'No tasks yet. Tap + to begin.',
+  };
   return (
     <View style={styles.empty}>
       <Body align="center" color={Colors.textSecondary}>
-        {filter === 'active'
-          ? 'No active tasks.\nTap + to start something.'
-          : filter === 'completed'
-          ? "You haven't completed any tasks yet.\nYou've got this."
-          : 'No tasks yet. Tap + to begin.'}
+        {messages[filter]}
       </Body>
     </View>
   );
@@ -120,8 +239,8 @@ const styles = StyleSheet.create({
     gap: Spacing[2],
     paddingHorizontal: Layout.screenPaddingH,
     marginBottom: Spacing[4],
+    flexWrap: 'wrap',
   },
-  chip: {},
   list: {
     paddingHorizontal: Layout.screenPaddingH,
     paddingBottom: Spacing[20],

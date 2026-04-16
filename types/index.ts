@@ -16,7 +16,9 @@ export interface UserProfile {
 
 // ── Task / Assignment ─────────────────────────────────────────
 
-export type TaskStatus = 'active' | 'completed' | 'abandoned';
+export type TaskStatus = 'active' | 'completed' | 'abandoned' | 'inactive' | 'queued';
+
+export type TaskPriority = 'low' | 'medium' | 'high' | 'urgent';
 
 export interface Task {
   id: string;
@@ -24,8 +26,14 @@ export interface Task {
   title: string;
   /** Raw description the user typed */
   description: string;
-  /** Optional deadline epoch ms */
+  /** Official deadline epoch ms */
   dueAt?: number;
+  /** User-set personal target date (before the official deadline) */
+  targetDate?: number;
+  /** Priority level */
+  priority?: TaskPriority;
+  /** Self-reward or consequence the user defined */
+  reward?: string;
   status: TaskStatus;
   steps: TaskStep[];
   createdAt: number;
