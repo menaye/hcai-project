@@ -28,7 +28,7 @@ import { Spacing, Layout, Radius, Shadow } from '../constants/spacing';
 import { H4, Body, BodySmall } from '../components/ui/Typography';
 import { HumanMascot } from '../components/mascot/HumanMascot';
 import { chatWithAI } from '../services/ai/claude';
-import { updateTask } from '../services/firebase/firestore';
+import { createTask, updateTask } from '../services/firebase/firestore';
 import { useTaskStore } from '../store/taskStore';
 import { useAuthStore } from '../store/authStore';
 import { useSettingsStore } from '../store/settingsStore';
@@ -36,6 +36,7 @@ import { useChatStore } from '../store/chatStore';
 import type { ChatMessage as APIChatMessage } from '../services/ai/types';
 import type { ChatMessage, TaskAction } from '../store/chatStore';
 import type { Task, UserProfile } from '../types';
+import { generateId, generateStepId } from '../utils/idUtils';
 
 // ── System context builder ────────────────────────────────────
 
@@ -69,24 +70,77 @@ function buildSystemContext(tasks: Task[], profile: UserProfile | null): string 
 
 // ── Action block parser ───────────────────────────────────────
 
-const TASK_OP_REGEX = /\[TASK_OP:(\{.*?\})\]/;
-
 function parseActionBlock(text: string): { cleaned: string; action: TaskAction | null } {
-  const match = text.match(TASK_OP_REGEX);
-  if (!match) return { cleaned: text.trim(), action: null };
+  const marker = '[TASK_OP:';
+  const start = text.indexOf(marker);
+  if (start === -1) return { cleaned: text.trim(), action: null };
+
+  let depth = 0;
+  let inString = false;
+  let escaped = false;
+  let jsonStart = -1;
+  let jsonEnd = -1;
+
+  for (let i = start + marker.length; i < text.length; i += 1) {
+    const char = text[i];
+
+    if (jsonStart === -1) {
+      if (char === '{') {
+        jsonStart = i;
+        depth = 1;
+      }
+      continue;
+    }
+
+    if (escaped) {
+      escaped = false;
+      continue;
+    }
+
+    if (char === '\\') {
+      escaped = true;
+      continue;
+    }
+
+    if (char === '"') {
+      inString = !inString;
+      continue;
+    }
+
+    if (inString) continue;
+
+    if (char === '{') depth += 1;
+    if (char === '}') depth -= 1;
+
+    if (depth === 0) {
+      jsonEnd = i;
+      break;
+    }
+  }
+
+  if (jsonStart === -1 || jsonEnd === -1) {
+    return { cleaned: text.trim(), action: null };
+  }
+
+  const rawJson = text.slice(jsonStart, jsonEnd + 1);
+  const closingBracketIndex = text.indexOf(']', jsonEnd);
+  const cleaned =
+    closingBracketIndex === -1
+      ? text.trim()
+      : `${text.slice(0, start)}${text.slice(closingBracketIndex + 1)}`.trim();
+
   try {
-    const action = JSON.parse(match[1]) as TaskAction;
-    const cleaned = text.replace(TASK_OP_REGEX, '').trim();
+    const action = JSON.parse(rawJson) as TaskAction;
     return { cleaned, action };
   } catch {
-    return { cleaned: text.replace(TASK_OP_REGEX, '').trim(), action: null };
+    return { cleaned, action: null };
   }
 }
 
 // ── Chat screen ───────────────────────────────────────────────
 
 export default function ChatScreen() {
-  const { tasks } = useTaskStore();
+  const { tasks, upsertTask } = useTaskStore();
   const { profile, user } = useAuthStore();
   const { aiProvider, deepseekApiKey, anthropicApiKey, openaiApiKey } = useSettingsStore();
   const { messages, addMessage, updateMessage, clearMessages } = useChatStore();
@@ -107,13 +161,55 @@ export default function ChatScreen() {
     async (action: TaskAction, msgId: string) => {
       if (!user) return;
       try {
-        await updateTask(user.uid, action.taskId, action.updates as any);
+        if (action.op === 'update_task' && action.taskId && action.updates) {
+          await updateTask(user.uid, action.taskId, action.updates as any);
+        }
+
+        if (action.op === 'create_task' && action.title) {
+          const taskId = generateId();
+          const now = Date.now();
+          const sourceSteps = action.steps?.length
+            ? action.steps
+            : [
+                {
+                  title: 'Open your notes and list the most important topics',
+                  detail: 'Write down what you most need to review first so the task feels concrete.',
+                  estimatedMinutes: 10,
+                },
+              ];
+
+          const steps = sourceSteps.map((step, index) => ({
+            id: generateStepId(taskId, index + 1),
+            taskId,
+            order: index + 1,
+            title: step.title,
+            detail: step.detail,
+            estimatedMinutes: step.estimatedMinutes,
+            status: index === 0 ? 'active' as const : 'pending' as const,
+          }));
+
+          const task: Task = {
+            id: taskId,
+            userId: user.uid,
+            title: action.title,
+            description: action.description ?? '',
+            status: 'active',
+            steps,
+            createdAt: now,
+            updatedAt: now,
+            aiContext: action.aiContext,
+          };
+
+          await createTask(task);
+          upsertTask(task);
+        }
+
         updateMessage(msgId, { actionExecuted: true });
       } catch {
         // no-op
       }
     },
-    [user, updateMessage],
+    [user, updateMessage, upsertTask],
   );
 
   const handleClear = () => {
@@ -161,11 +257,13 @@ export default function ChatScreen() {
       if (action) {
         executeAction(action, assistantMsg.id);
       }
-    } catch {
+    } catch (error) {
+      const errorMessage =
+        error instanceof Error ? error.message : 'Unknown error';
       addMessage({
         id: `err-${Date.now()}`,
         role: 'assistant',
-        content: "I couldn't connect right now. Check your API key in Settings → AI Provider, or try again.",
+        content: `I couldn't connect right now. ${errorMessage}`,
         timestamp: Date.now(),
       });
     } finally {
@@ -203,7 +301,7 @@ export default function ChatScreen() {
                 color={item.actionExecuted ? Colors.success : Colors.textTertiary}
                 style={styles.actionBadgeText}
               >
-                {item.actionExecuted ? 'Task updated' : 'Updating task...'}
+                {item.actionExecuted ? 'Task synced' : 'Syncing task...'}
               </BodySmall>
             </View>
           )}

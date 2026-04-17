@@ -6,9 +6,17 @@
 import { create } from 'zustand';
 
 export interface TaskAction {
-  op: 'update_task';
-  taskId: string;
-  updates: Partial<{ status: string; title: string; completedAt: number }>;
+  op: 'update_task' | 'create_task';
+  taskId?: string;
+  updates?: Partial<{ status: string; title: string; completedAt: number }>;
+  title?: string;
+  description?: string;
+  steps?: {
+    title: string;
+    detail?: string;
+    estimatedMinutes?: number;
+  }[];
+  aiContext?: string;
 }
 
 export interface ChatMessage {
