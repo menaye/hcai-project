@@ -28,7 +28,7 @@ import {
 import { router } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { LinearGradient } from 'expo-linear-gradient';
+import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
 import { Colors } from '../../constants/colors';
 import { Spacing, Layout, Radius, Shadow } from '../../constants/spacing';
 import { H3, H4, Body, BodySmall, Label } from '../../components/ui/Typography';
@@ -41,7 +41,7 @@ import { decomposeTask, regenerateStep } from '../../services/ai/claude';
 import { createTask } from '../../services/firebase/firestore';
 import { generateId, generateStepId } from '../../utils/idUtils';
 import type { Task, TaskStep, AITaskBreakdown, TaskPriority } from '../../types';
-
+import { LinearGradient } from 'expo-linear-gradient';
 type Phase = 'input' | 'loading' | 'review';
 
 const PRIORITY_OPTIONS: { value: TaskPriority; label: string; color: string }[] = [
@@ -91,7 +91,7 @@ export default function NewTaskScreen() {
   const fadeAnim = useRef(new Animated.Value(1)).current;
 
   const handleCancel = () => {
-    const hasContent = title.trim() || description.trim();
+    const hasContent = title?.trim() || description?.trim();
     if (!hasContent) {
       router.back();
       return;
@@ -314,6 +314,8 @@ function DateQuickPicker({
   onClose: () => void;
   minDate?: number;
 }) {
+  const [showCalendar, setShowCalendar] = useState(false);
+  
   const options = quickDateOptions().filter((o) => !minDate || o.value >= minDate);
   return (
     <Modal transparent animationType="fade" onRequestClose={onClose}>
@@ -334,6 +336,14 @@ function DateQuickPicker({
               <BodySmall color={Colors.textTertiary}>{formatDateShort(opt.value)}</BodySmall>
             </TouchableOpacity>
           ))}
+          {/* Calendar picker button */}
+          <TouchableOpacity
+            style={styles.pickerRow}
+            onPress={() => setShowCalendar(true)}
+          >
+            <Body color={Colors.primary}>Choose from calendar</Body>
+            <Ionicons name="calendar-outline" size={16} color={Colors.primary} />
+          </TouchableOpacity>
           {value !== undefined && (
             <TouchableOpacity style={styles.pickerRow} onPress={() => { onChange(undefined); onClose(); }}>
               <Body color={Colors.error}>Clear date</Body>
@@ -344,6 +354,21 @@ function DateQuickPicker({
           </TouchableOpacity>
         </View>
       </TouchableOpacity>
+      {showCalendar && (
+        <DateTimePicker
+          value={value ? new Date(value) : new Date()}
+          mode="date"
+          display="default"
+          minimumDate={minDate ? new Date(minDate) : undefined}
+          onChange={(event: DateTimePickerEvent, selectedDate?: Date) => {
+            setShowCalendar(false);
+            if (event.type === 'set' && selectedDate) {
+              onChange(selectedDate.getTime());
+              onClose();
+            }
+          }}
+        />
+      )}
     </Modal>
   );
 }
@@ -530,6 +555,7 @@ function InputPhase({
           value={dueAt}
           onChange={setDueAt}
           onClose={() => setShowDuePicker(false)}
+          minDate={Date.now()}
         />
       )}
       {showTargetPicker && (

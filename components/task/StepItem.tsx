@@ -34,7 +34,7 @@ export function StepItem({ step, onComplete, onUncheck, onPress, onLongPress }: 
 
   const handleCheckPress = () => {
     if (isCompleted) {
-      if (!onUncheck) return;
+      if (!onUncheck || !step.id) return;
       Alert.alert(
         'Un-mark this step?',
         'This will mark it as incomplete again.',
@@ -45,6 +45,7 @@ export function StepItem({ step, onComplete, onUncheck, onPress, onLongPress }: 
       );
       return;
     }
+    if (!step.id) return;
     // Satisfying spring animation
     Animated.sequence([
       Animated.spring(scaleAnim, { toValue: 0.94, useNativeDriver: true, damping: 8 }),

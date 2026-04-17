@@ -27,6 +27,7 @@ import { useLocalSearchParams, router } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
+import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
 import { Colors } from '../../constants/colors';
 import { Spacing, Layout, Radius, Shadow } from '../../constants/spacing';
 import { H2, H3, H4, Body, BodySmall, Label } from '../../components/ui/Typography';
@@ -61,6 +62,8 @@ export default function TaskDetailScreen() {
   const [editTargetDate, setEditTargetDate] = useState<number | undefined>();
   const [showEditDuePicker, setShowEditDuePicker] = useState(false);
   const [showEditTargetPicker, setShowEditTargetPicker] = useState(false);
+  const [showEditDueCalendar, setShowEditDueCalendar] = useState(false);
+  const [showEditTargetCalendar, setShowEditTargetCalendar] = useState(false);
   const [savingTitle, setSavingTitle] = useState(false);
   // Step editing
   const [editStepVisible, setEditStepVisible] = useState(false);
@@ -547,6 +550,14 @@ export default function TaskDetailScreen() {
                   <BodySmall color={Colors.textTertiary}>{formatDateShort(opt.value)}</BodySmall>
                 </TouchableOpacity>
               ))}
+              {/* Calendar picker button */}
+              <TouchableOpacity
+                style={styles.pickerRow}
+                onPress={() => { setShowEditDuePicker(false); setShowEditDueCalendar(true); }}
+              >
+                <Body color={Colors.primary}>Choose from calendar</Body>
+                <Ionicons name="calendar-outline" size={16} color={Colors.primary} />
+              </TouchableOpacity>
               {editDueAt !== undefined && (
                 <TouchableOpacity
                   style={styles.pickerRow}
@@ -585,6 +596,14 @@ export default function TaskDetailScreen() {
                   <BodySmall color={Colors.textTertiary}>{formatDateShort(opt.value)}</BodySmall>
                 </TouchableOpacity>
               ))}
+              {/* Calendar picker button */}
+              <TouchableOpacity
+                style={styles.pickerRow}
+                onPress={() => { setShowEditTargetPicker(false); setShowEditTargetCalendar(true); }}
+              >
+                <Body color={Colors.primary}>Choose from calendar</Body>
+                <Ionicons name="calendar-outline" size={16} color={Colors.primary} />
+              </TouchableOpacity>
               {editTargetDate !== undefined && (
                 <TouchableOpacity
                   style={styles.pickerRow}
@@ -599,6 +618,38 @@ export default function TaskDetailScreen() {
             </View>
           </TouchableOpacity>
         </Modal>
+      )}
+
+      {/* Edit task — due date calendar */}
+      {showEditDueCalendar && (
+        <DateTimePicker
+          value={editDueAt ? new Date(editDueAt) : new Date()}
+          mode="date"
+          display="default"
+          minimumDate={new Date()}
+          onChange={(event: DateTimePickerEvent, selectedDate?: Date) => {
+            setShowEditDueCalendar(false);
+            if (event.type === 'set' && selectedDate) {
+              setEditDueAt(selectedDate.getTime());
+            }
+          }}
+        />
+      )}
+
+      {/* Edit task — target date calendar */}
+      {showEditTargetCalendar && (
+        <DateTimePicker
+          value={editTargetDate ? new Date(editTargetDate) : new Date()}
+          mode="date"
+          display="default"
+          minimumDate={new Date()}
+          onChange={(event: DateTimePickerEvent, selectedDate?: Date) => {
+            setShowEditTargetCalendar(false);
+            if (event.type === 'set' && selectedDate) {
+              setEditTargetDate(selectedDate.getTime());
+            }
+          }}
+        />
       )}
 
       {/* Edit step modal */}
