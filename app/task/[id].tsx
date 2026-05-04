@@ -69,6 +69,8 @@ export default function TaskDetailScreen() {
   const [editStepVisible, setEditStepVisible] = useState(false);
   const [editingStep, setEditingStep] = useState<TaskStep | null>(null);
   const [editStepTitle, setEditStepTitle] = useState('');
+  const [editStepDetail, setEditStepDetail] = useState('');
+  const [editStepMinutes, setEditStepMinutes] = useState('');
   const [savingStep, setSavingStep] = useState(false);
 
   const isComplete = task?.status === 'completed';
@@ -216,15 +218,19 @@ export default function TaskDetailScreen() {
     }
   };
 
+  const openStepEditor = (step: TaskStep) => {
+    setEditingStep(step);
+    setEditStepTitle(step.title);
+    setEditStepDetail(step.detail ?? '');
+    setEditStepMinutes(step.estimatedMinutes ? String(step.estimatedMinutes) : '');
+    setEditStepVisible(true);
+  };
+
   const handleStepLongPress = (step: TaskStep) => {
     Alert.alert(step.title, undefined, [
       {
         text: 'Edit step',
-        onPress: () => {
-          setEditingStep(step);
-          setEditStepTitle(step.title);
-          setEditStepVisible(true);
-        },
+        onPress: () => openStepEditor(step),
       },
       { text: 'Cancel', style: 'cancel' },
     ]);
@@ -234,8 +240,14 @@ export default function TaskDetailScreen() {
     if (!user || !task || !editingStep || !editStepTitle.trim()) return;
     setSavingStep(true);
     try {
+      const parsedMinutes = editStepMinutes.trim() ? Number(editStepMinutes.trim()) : undefined;
       await updateTaskStep(user.uid, task.id, editingStep.id, {
         title: editStepTitle.trim(),
+        detail: editStepDetail.trim() || undefined,
+        estimatedMinutes:
+          parsedMinutes && Number.isFinite(parsedMinutes) && parsedMinutes > 0
+            ? parsedMinutes
+            : undefined,
       });
       setEditStepVisible(false);
       setEditingStep(null);
@@ -459,6 +471,7 @@ export default function TaskDetailScreen() {
             onComplete={handleCompleteStep}
             onUncheck={!isComplete ? handleUncheckStep : undefined}
             onLongPress={!isComplete ? handleStepLongPress : undefined}
+            onEdit={!isComplete ? openStepEditor : undefined}
           />
         ))}
 
@@ -689,20 +702,48 @@ export default function TaskDetailScreen() {
             <H4 color={Colors.textPrimary} style={styles.editModalTitle}>
               Edit step
             </H4>
+            <Label color={Colors.textTertiary} style={styles.editFieldLabel}>
+              STEP TITLE
+            </Label>
             <TextInput
               value={editStepTitle}
               onChangeText={setEditStepTitle}
               style={styles.editInput}
-              multiline
               autoFocus
               placeholder="Step title"
+              placeholderTextColor={Colors.textTertiary}
+            />
+            <Label color={Colors.textTertiary} style={[styles.editFieldLabel, { marginTop: Spacing[4] }]}>
+              DETAILS
+            </Label>
+            <TextInput
+              value={editStepDetail}
+              onChangeText={setEditStepDetail}
+              style={[styles.editInput, styles.editTextarea]}
+              multiline
+              numberOfLines={3}
+              placeholder="How should you do this step?"
+              placeholderTextColor={Colors.textTertiary}
+            />
+            <Label color={Colors.textTertiary} style={[styles.editFieldLabel, { marginTop: Spacing[4] }]}>
+              ESTIMATED MINUTES
+            </Label>
+            <TextInput
+              value={editStepMinutes}
+              onChangeText={setEditStepMinutes}
+              style={styles.editInput}
+              keyboardType="number-pad"
+              placeholder="20"
               placeholderTextColor={Colors.textTertiary}
             />
             <View style={styles.editModalActions}>
               <Button
                 label="Cancel"
                 variant="ghost"
-                onPress={() => setEditStepVisible(false)}
+                onPress={() => {
+                  setEditStepVisible(false);
+                  setEditingStep(null);
+                }}
                 style={styles.editModalBtn}
               />
               <Button
@@ -968,6 +1009,9 @@ const styles = StyleSheet.create({
     minHeight: 80,
     textAlignVertical: 'top',
     fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
+  },
+  editTextarea: {
+    minHeight: 110,
   },
   editModalActions: {
     flexDirection: 'row',

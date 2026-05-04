@@ -22,9 +22,10 @@ interface StepItemProps {
   onUncheck?: (stepId: string) => void;
   onPress?: (step: TaskStep) => void;
   onLongPress?: (step: TaskStep) => void;
+  onEdit?: (step: TaskStep) => void;
 }
 
-export function StepItem({ step, onComplete, onUncheck, onPress, onLongPress }: StepItemProps) {
+export function StepItem({ step, onComplete, onUncheck, onPress, onLongPress, onEdit }: StepItemProps) {
   const scaleAnim = useRef(new Animated.Value(1)).current;
   const [expanded, setExpanded] = useState(false);
 
@@ -35,6 +36,10 @@ export function StepItem({ step, onComplete, onUncheck, onPress, onLongPress }: 
   const handleCheckPress = () => {
     if (isCompleted) {
       if (!onUncheck || !step.id) return;
+      if (typeof window !== 'undefined') {
+        onUncheck(step.id);
+        return;
+      }
       Alert.alert(
         'Un-mark this step?',
         'This will mark it as incomplete again.',
@@ -151,14 +156,26 @@ export function StepItem({ step, onComplete, onUncheck, onPress, onLongPress }: 
         </View>
 
         {/* Expand indicator for steps with detail */}
-        {hasDetail && !isActive && !isPending && (
-          <Ionicons
-            name={expanded ? 'chevron-up' : 'chevron-down'}
-            size={14}
-            color={Colors.textTertiary}
-            style={styles.expandIcon}
-          />
-        )}
+        <View style={styles.trailingActions}>
+          {hasDetail && !isActive && !isPending && (
+            <Ionicons
+              name={expanded ? 'chevron-up' : 'chevron-down'}
+              size={14}
+              color={Colors.textTertiary}
+              style={styles.expandIcon}
+            />
+          )}
+
+          {onEdit && (
+            <TouchableOpacity
+              onPress={() => onEdit(step)}
+              style={styles.editBtn}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            >
+              <Ionicons name="pencil-outline" size={15} color={Colors.textTertiary} />
+            </TouchableOpacity>
+          )}
+        </View>
 
         {/* Active indicator */}
         {isActive && <View style={styles.activeDot} />}
@@ -218,9 +235,21 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   expandIcon: {
-    marginLeft: Spacing[2],
     marginTop: 5,
+  },
+  trailingActions: {
+    marginLeft: Spacing[2],
+    alignItems: 'center',
+    gap: Spacing[2],
     flexShrink: 0,
+  },
+  editBtn: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: Colors.surface,
   },
   activeDot: {
     width: 8,
