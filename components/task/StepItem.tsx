@@ -46,11 +46,15 @@ export function StepItem({ step, onComplete, onUncheck, onPress, onLongPress }: 
       return;
     }
     if (!step.id) return;
-    // Satisfying spring animation
+    
+    // Call handler immediately for optimistic UI update
+    onComplete(step.id);
+    
+    // Satisfying spring animation (visual feedback only, doesn't block update)
     Animated.sequence([
       Animated.spring(scaleAnim, { toValue: 0.94, useNativeDriver: true, damping: 8 }),
       Animated.spring(scaleAnim, { toValue: 1, useNativeDriver: true, damping: 10 }),
-    ]).start(() => onComplete(step.id));
+    ]).start();
   };
 
   const containerBg = isActive

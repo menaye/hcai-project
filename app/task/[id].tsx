@@ -92,22 +92,29 @@ export default function TaskDetailScreen() {
       const stepIndex = task.steps.findIndex((s) => s.id === stepId);
       const nextStep = task.steps[stepIndex + 1];
 
-      await updateTaskStep(user.uid, task.id, stepId, {
-        status: 'completed',
-        completedAt: Date.now(),
-      });
+      // Execute all independent updates in parallel for responsiveness
+      const updates = [
+        updateTaskStep(user.uid, task.id, stepId, {
+          status: 'completed',
+          completedAt: Date.now(),
+        }),
+        recordActivity(user.uid, 'step'),
+      ];
 
+      // Add next step activation if needed
       if (nextStep && nextStep.status === 'pending') {
-        await updateTaskStep(user.uid, task.id, nextStep.id, { status: 'active' });
+        updates.push(updateTaskStep(user.uid, task.id, nextStep.id, { status: 'active' }));
       }
 
-      await recordActivity(user.uid, 'step');
+      // Wait for all core updates in parallel
+      await Promise.all(updates);
 
       if (isVeryFirstStep) {
         setFirstStepCelebration(true);
         setTimeout(() => setFirstStepCelebration(false), 4000);
       }
 
+      // Fire off encouragement in background (don't await)
       const stepsLeft = totalSteps - completedSteps - 1;
       if (stepsLeft >= 0 && !isVeryFirstStep) {
         getStepEncouragement(task.title, step.title, stepsLeft)
@@ -137,10 +144,28 @@ export default function TaskDetailScreen() {
   const handleUncheckStep = async (stepId: string) => {
     if (!task || !user) return;
     try {
-      await updateTaskStep(user.uid, task.id, stepId, {
-        status: 'active',
-        completedAt: undefined,
-      });
+      const stepIndex = task.steps.findIndex((s) => s.id === stepId);
+      if (stepIndex < 0) return;
+
+      // Build updates: mark this step active, reset all subsequent steps to pending
+      const updates = [
+        updateTaskStep(user.uid, task.id, stepId, {
+          status: 'active',
+          completedAt: undefined,
+        }),
+      ];
+
+      // Reset all steps after this one to pending
+      for (let i = stepIndex + 1; i < task.steps.length; i++) {
+        updates.push(
+          updateTaskStep(user.uid, task.id, task.steps[i].id, {
+            status: 'pending',
+            completedAt: undefined,
+          }),
+        );
+      }
+
+      await Promise.all(updates);
     } catch (e) {
       console.error('Un-check error:', e);
     }
