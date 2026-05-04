@@ -155,7 +155,7 @@ const styles = StyleSheet.create({
   chatFab: {
     position: 'absolute',
     bottom: Platform.OS === 'ios' ? 108 : 84,
-    right: Layout.screenPaddingH,
+    left: Layout.screenPaddingH,
     width: 50,
     height: 50,
     borderRadius: 25,

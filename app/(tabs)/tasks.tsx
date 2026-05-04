@@ -209,7 +209,7 @@ export default function TasksScreen() {
 
 function EmptyState({ filter }: { filter: Filter }) {
   const messages: Record<Filter, string> = {
-    active: 'No active tasks.\nTap + to start something.',
+    active: 'No active tasks.\nTap + to start a task.',
     completed: "You haven't completed any tasks yet.\nYou've got this.",
     inactive: 'No paused tasks.',
     queued: 'No queued tasks.\nLong-press a task to queue it.',
