@@ -37,6 +37,7 @@ import { ProgressBar } from '../../components/ui/ProgressBar';
 import { HumanMascot } from '../../components/mascot/HumanMascot';
 import { StepItem } from '../../components/task/StepItem';
 import { useAuthStore } from '../../store/authStore';
+import { useSettingsStore } from '../../store/settingsStore';
 import { decomposeTask, regenerateStep } from '../../services/ai/claude';
 import { createTask } from '../../services/firebase/firestore';
 import { generateId, generateStepId } from '../../utils/idUtils';
@@ -75,12 +76,13 @@ function formatDateShort(epoch: number): string {
 
 export default function NewTaskScreen() {
   const { user, profile } = useAuthStore();
+  const settings = useSettingsStore();
   const [phase, setPhase] = useState<Phase>('input');
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [dueAt, setDueAt] = useState<number | undefined>();
   const [targetDate, setTargetDate] = useState<number | undefined>();
-  const [priority, setPriority] = useState<TaskPriority | undefined>();
+  const [priority, setPriority] = useState<TaskPriority | undefined>(settings.defaultPriority ?? undefined);
   const [reward, setReward] = useState('');
   const [showMoreOptions, setShowMoreOptions] = useState(false);
   const [showDuePicker, setShowDuePicker] = useState(false);

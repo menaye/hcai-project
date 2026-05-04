@@ -37,10 +37,11 @@ import { HumanMascot } from '../../components/mascot/HumanMascot';
 import { StepItem } from '../../components/task/StepItem';
 import { useAuthStore } from '../../store/authStore';
 import { useTaskStore } from '../../store/taskStore';
+import { useSettingsStore } from '../../store/settingsStore';
 import { updateTaskStep, updateTask, recordActivity, deleteTask } from '../../services/firebase/firestore';
 import { getStepEncouragement } from '../../services/ai/claude';
 import { formatDaysUntil } from '../../utils/dateUtils';
-import type { Task, TaskStep } from '../../types';
+import type { Task, TaskStep, TaskPriority } from '../../types';
 
 const PRIORITY_COLOR = { low: Colors.success, medium: Colors.gold, high: Colors.accent, urgent: Colors.error };
 const PRIORITY_LABEL = { low: 'Low priority', medium: 'Medium priority', high: 'High priority', urgent: 'Urgent' };
@@ -49,19 +50,22 @@ export default function TaskDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { user } = useAuthStore();
   const { tasks } = useTaskStore();
+  const settings = useSettingsStore();
 
   const task = tasks.find((t) => t.id === id);
   const [encouragement, setEncouragement] = useState<string | null>(null);
   const [firstStepCelebration, setFirstStepCelebration] = useState(false);
   const [mascotState, setMascotState] = useState<'idle' | 'happy' | 'encouraging'>('idle');
   const [completing, setCompleting] = useState<string | null>(null);
-  const [focusModeActive, setFocusModeActive] = useState(false);
+  const [focusModeActive, setFocusModeActive] = useState(settings.focusModeDefault);
   const [editTitleVisible, setEditTitleVisible] = useState(false);
   const [editTitleValue, setEditTitleValue] = useState('');
   const [editDueAt, setEditDueAt] = useState<number | undefined>();
   const [editTargetDate, setEditTargetDate] = useState<number | undefined>();
+  const [editPriority, setEditPriority] = useState<TaskPriority | undefined>();
   const [showEditDuePicker, setShowEditDuePicker] = useState(false);
   const [showEditTargetPicker, setShowEditTargetPicker] = useState(false);
+  const [showEditPriorityPicker, setShowEditPriorityPicker] = useState(false);
   const [showEditDueCalendar, setShowEditDueCalendar] = useState(false);
   const [showEditTargetCalendar, setShowEditTargetCalendar] = useState(false);
   const [savingTitle, setSavingTitle] = useState(false);
@@ -198,6 +202,7 @@ export default function TaskDetailScreen() {
     setEditTitleValue(task.title);
     setEditDueAt(task.dueAt);
     setEditTargetDate(task.targetDate);
+    setEditPriority(task.priority);
     setEditTitleVisible(true);
   };
 
@@ -209,6 +214,7 @@ export default function TaskDetailScreen() {
         title: editTitleValue.trim(),
         dueAt: editDueAt,
         targetDate: editTargetDate,
+        priority: editPriority,
       });
       setEditTitleVisible(false);
     } catch {
@@ -547,6 +553,24 @@ export default function TaskDetailScreen() {
               </Body>
             </TouchableOpacity>
 
+            <Label color={Colors.textTertiary} style={[styles.editFieldLabel, { marginTop: Spacing[4] }]}>
+              PRIORITY
+            </Label>
+            <TouchableOpacity
+              style={styles.editDateField}
+              onPress={() => setShowEditPriorityPicker(true)}
+              activeOpacity={0.7}
+            >
+              <Ionicons
+                name="alert-circle-outline"
+                size={16}
+                color={editPriority ? PRIORITY_COLOR[editPriority] : Colors.textTertiary}
+              />
+              <Body color={editPriority ? PRIORITY_COLOR[editPriority] : Colors.textTertiary}>
+                {editPriority ? PRIORITY_LABEL[editPriority] : 'No priority'}
+              </Body>
+            </TouchableOpacity>
+
             <View style={styles.editModalActions}>
               <Button
                 label="Cancel"
@@ -690,6 +714,49 @@ export default function TaskDetailScreen() {
         />
       )}
 
+      {/* Edit task — priority picker */}
+      {showEditPriorityPicker && (
+        <Modal transparent animationType="fade" onRequestClose={() => setShowEditPriorityPicker(false)}>
+          <TouchableOpacity
+            style={styles.pickerOverlay}
+            activeOpacity={1}
+            onPress={() => setShowEditPriorityPicker(false)}
+          >
+            <View style={styles.pickerCard}>
+              <Label color={Colors.textTertiary} style={styles.pickerTitle}>PRIORITY</Label>
+              {(['low', 'medium', 'high', 'urgent'] as const).map((priority) => (
+                <TouchableOpacity
+                  key={priority}
+                  style={[styles.pickerRow, editPriority === priority && styles.pickerRowSelected]}
+                  onPress={() => { setEditPriority(priority); setShowEditPriorityPicker(false); }}
+                >
+                  <View style={styles.priorityPickerRow}>
+                    <View style={[styles.priorityDot, { backgroundColor: PRIORITY_COLOR[priority] }]} />
+                    <Body color={editPriority === priority ? Colors.primary : Colors.textPrimary}>
+                      {PRIORITY_LABEL[priority]}
+                    </Body>
+                  </View>
+                  {editPriority === priority && (
+                    <Ionicons name="checkmark" size={18} color={Colors.primary} />
+                  )}
+                </TouchableOpacity>
+              ))}
+              {editPriority !== undefined && (
+                <TouchableOpacity
+                  style={styles.pickerRow}
+                  onPress={() => { setEditPriority(undefined); setShowEditPriorityPicker(false); }}
+                >
+                  <Body color={Colors.error}>Clear priority</Body>
+                </TouchableOpacity>
+              )}
+              <TouchableOpacity style={styles.pickerClose} onPress={() => setShowEditPriorityPicker(false)}>
+                <Body color={Colors.textTertiary}>Close</Body>
+              </TouchableOpacity>
+            </View>
+          </TouchableOpacity>
+        </Modal>
+      )}
+
       {/* Edit step modal */}
       <Modal
         visible={editStepVisible}
@@ -785,10 +852,15 @@ function FocusModeView({
   const progress = totalSteps > 0 ? completedSteps / totalSteps : 0;
   return (
     <View style={styles.focusContainer}>
-      {/* Exit button */}
-      <TouchableOpacity onPress={onExit} style={styles.focusExit}>
-        <Ionicons name="close" size={22} color={Colors.textTertiary} />
-      </TouchableOpacity>
+      {/* Header buttons */}
+      <View style={styles.focusHeader}>
+        <TouchableOpacity onPress={() => router.back()} style={styles.focusHeaderBtn}>
+          <Ionicons name="chevron-back" size={24} color={Colors.textPrimary} />
+        </TouchableOpacity>
+        <TouchableOpacity onPress={onExit} style={styles.focusHeaderBtn}>
+          <Ionicons name="close" size={24} color={Colors.textPrimary} />
+        </TouchableOpacity>
+      </View>
 
       {/* Progress pill */}
       <Label color={Colors.textTertiary} style={styles.focusProgress}>
@@ -1081,6 +1153,17 @@ const styles = StyleSheet.create({
     marginTop: Spacing[4],
     alignItems: 'center',
   },
+  priorityPickerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing[3],
+    flex: 1,
+  },
+  priorityDot: {
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+  },
   // Focus mode
   focusContainer: {
     flex: 1,
@@ -1090,10 +1173,16 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  focusExit: {
+  focusHeader: {
     position: 'absolute',
     top: Spacing[2],
+    left: Layout.screenPaddingH,
     right: Layout.screenPaddingH,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  focusHeaderBtn: {
     padding: Spacing[2],
   },
   focusProgress: {
