@@ -22,6 +22,7 @@ import { Spacing, Layout, Shadow } from '../../constants/spacing';
 import { H3, Body, Label } from '../../components/ui/Typography';
 import { Chip } from '../../components/ui/Chip';
 import { TaskCard } from '../../components/task/TaskCard';
+import { TaskActionSheet, type TaskActionSheetOption } from '../../components/task/TaskActionSheet';
 import { useTaskStore } from '../../store/taskStore';
 import { useAuthStore } from '../../store/authStore';
 import { updateTask, deleteTask } from '../../services/firebase/firestore';
@@ -36,6 +37,7 @@ export default function TasksScreen() {
   const [filter, setFilter] = useState<Filter>(
     (filterParam as Filter) ?? 'active',
   );
+  const [sheetTask, setSheetTask] = useState<Task | null>(null);
 
   // Sync filter when navigating to this tab with a filter param
   useEffect(() => {
@@ -57,75 +59,46 @@ export default function TasksScreen() {
     router.push(`/task/${task.id}`);
   };
 
-  const handleStatusChange = (task: Task) => {
+  const openTaskActions = (task: Task) => {
     if (!user) return;
-    const options: { text: string; onPress?: () => void; style?: 'default' | 'cancel' | 'destructive' }[] = [];
+    setSheetTask(task);
+  };
+
+  const getTaskActions = (task: Task): TaskActionSheetOption[] => {
+    if (!user) return [];
+    const actions: TaskActionSheetOption[] = [];
 
     if (task.status !== 'active') {
-      options.push({
-        text: 'Set Active',
+      actions.push({
+        label: 'Set Active',
         onPress: () => updateTask(user.uid, task.id, { status: 'active' }),
       });
     }
     if (task.status !== 'queued') {
-      options.push({
-        text: 'Set Queued',
+      actions.push({
+        label: 'Set Queued',
         onPress: () => updateTask(user.uid, task.id, { status: 'queued' }),
       });
     }
     if (task.status !== 'inactive') {
-      options.push({
-        text: 'Pause',
+      actions.push({
+        label: 'Pause',
         onPress: () => updateTask(user.uid, task.id, { status: 'inactive' }),
       });
     }
     if (task.status !== 'completed') {
-      options.push({
-        text: 'Mark Complete',
+      actions.push({
+        label: 'Mark Complete',
         onPress: () => updateTask(user.uid, task.id, { status: 'completed', completedAt: Date.now() }),
       });
     }
-    options.push({ text: 'Cancel', style: 'cancel' });
-
-    Alert.alert('Change status', task.title, options);
-  };
-
-  const handleTaskLongPress = (task: Task) => {
-    if (!user) return;
-    const options: { text: string; onPress?: () => void; style?: 'default' | 'cancel' | 'destructive' }[] = [];
-
-    if (task.status === 'active' || task.status === 'inactive') {
-      options.push({
-        text: 'Set to Queued',
-        onPress: () => updateTask(user.uid, task.id, { status: 'queued' }),
-      });
-    }
-    if (task.status === 'queued' || task.status === 'inactive') {
-      options.push({
-        text: 'Activate',
-        onPress: () => updateTask(user.uid, task.id, { status: 'active' }),
-      });
-    }
-    if (task.status === 'active' || task.status === 'queued') {
-      options.push({
-        text: 'Pause',
-        onPress: () => updateTask(user.uid, task.id, { status: 'inactive' }),
-      });
-    }
-    if (task.status === 'inactive') {
-      options.push({
-        text: 'Reactivate',
-        onPress: () => updateTask(user.uid, task.id, { status: 'active' }),
-      });
-    }
-    options.push({
-      text: 'Delete task',
-      style: 'destructive',
+    actions.push({
+      label: 'Delete task',
+      destructive: true,
       onPress: () => confirmDelete(task),
     });
-    options.push({ text: 'Cancel', style: 'cancel' });
 
-    Alert.alert(task.title, undefined, options);
+    return actions;
   };
 
   const confirmDelete = (task: Task) => {
@@ -183,8 +156,8 @@ export default function TasksScreen() {
           <TaskCard
             task={item}
             onPress={handleTaskPress}
-            onLongPress={handleTaskLongPress}
-            onStatusChange={handleStatusChange}
+            onLongPress={openTaskActions}
+            onStatusChange={openTaskActions}
           />
         )}
         contentContainerStyle={[
@@ -194,6 +167,15 @@ export default function TasksScreen() {
         showsVerticalScrollIndicator={false}
         ListEmptyComponent={<EmptyState filter={filter} />}
       />
+
+      {sheetTask && (
+        <TaskActionSheet
+          visible={!!sheetTask}
+          title={sheetTask.title}
+          actions={getTaskActions(sheetTask)}
+          onClose={() => setSheetTask(null)}
+        />
+      )}
 
       {/* FAB */}
       <TouchableOpacity

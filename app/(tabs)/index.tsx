@@ -15,6 +15,7 @@
 
 import React from 'react';
 import {
+  Alert,
   View,
   ScrollView,
   StyleSheet,
@@ -33,14 +34,17 @@ import { Card } from '../../components/ui/Card';
 import { HumanMascot } from '../../components/mascot/HumanMascot';
 import { StreakBadge } from '../../components/task/StreakBadge';
 import { TaskCard } from '../../components/task/TaskCard';
+import { TaskActionSheet, type TaskActionSheetOption } from '../../components/task/TaskActionSheet';
 import { useAuthStore } from '../../store/authStore';
 import { useTaskStore } from '../../store/taskStore';
+import { updateTask, deleteTask } from '../../services/firebase/firestore';
 import { getGreeting } from '../../utils/dateUtils';
 import type { Task } from '../../types';
 
 export default function HomeScreen() {
-  const { profile } = useAuthStore();
+  const { profile, user } = useAuthStore();
   const { tasks, streak } = useTaskStore();
+  const [sheetTask, setSheetTask] = React.useState<Task | null>(null);
 
   const activeTasks = tasks
     .filter((t) => t.status === 'active')
@@ -73,6 +77,65 @@ export default function HomeScreen() {
 
   const handleTaskPress = (task: Task) => {
     router.push(`/task/${task.id}`);
+  };
+
+  const confirmDelete = (task: Task) => {
+    if (!user) return;
+    const completedSteps = task.steps.filter((s) => s.status === 'completed').length;
+    const warningMsg = completedSteps > 0
+      ? `You've already completed ${completedSteps} step${completedSteps > 1 ? 's' : ''} on this task. Deleting it will remove it from your timeline.`
+      : 'This will permanently remove the task and its steps.';
+
+    Alert.alert('Delete task?', warningMsg, [
+      { text: 'Keep it', style: 'cancel' },
+      {
+        text: 'Delete',
+        style: 'destructive',
+        onPress: () => deleteTask(user.uid, task.id),
+      },
+    ]);
+  };
+
+  const openTaskActions = (task: Task) => {
+    if (!user) return;
+    setSheetTask(task);
+  };
+
+  const getTaskActions = (task: Task): TaskActionSheetOption[] => {
+    if (!user) return [];
+    const actions: TaskActionSheetOption[] = [];
+
+    if (task.status !== 'active') {
+      actions.push({
+        label: 'Set Active',
+        onPress: () => updateTask(user.uid, task.id, { status: 'active' }),
+      });
+    }
+    if (task.status !== 'queued') {
+      actions.push({
+        label: 'Set Queued',
+        onPress: () => updateTask(user.uid, task.id, { status: 'queued' }),
+      });
+    }
+    if (task.status !== 'inactive') {
+      actions.push({
+        label: 'Pause',
+        onPress: () => updateTask(user.uid, task.id, { status: 'inactive' }),
+      });
+    }
+    if (task.status !== 'completed') {
+      actions.push({
+        label: 'Mark Complete',
+        onPress: () => updateTask(user.uid, task.id, { status: 'completed', completedAt: Date.now() }),
+      });
+    }
+    actions.push({
+      label: 'Delete task',
+      destructive: true,
+      onPress: () => confirmDelete(task),
+    });
+
+    return actions;
   };
 
   return (
@@ -127,7 +190,12 @@ export default function HomeScreen() {
                 ? 'IN PROGRESS'
                 : 'UP NEXT'}
             </Label>
-            <TaskCard task={currentTask} onPress={handleTaskPress} />
+            <TaskCard
+              task={currentTask}
+              onPress={handleTaskPress}
+              onLongPress={openTaskActions}
+              onStatusChange={openTaskActions}
+            />
           </View>
         )}
 
@@ -143,7 +211,14 @@ export default function HomeScreen() {
               </TouchableOpacity>
             </View>
             {activeTasks.slice(1, 3).map((task) => (
-              <TaskCard key={task.id} task={task} onPress={handleTaskPress} compact />
+              <TaskCard
+                key={task.id}
+                task={task}
+                onPress={handleTaskPress}
+                onLongPress={openTaskActions}
+                onStatusChange={openTaskActions}
+                compact
+              />
             ))}
           </View>
         )}
@@ -166,6 +241,15 @@ export default function HomeScreen() {
               onPress={() => router.push({ pathname: '/(tabs)/tasks', params: { filter: 'completed' } })}
             />
           </View>
+        )}
+
+        {sheetTask && (
+          <TaskActionSheet
+            visible={!!sheetTask}
+            title={sheetTask.title}
+            actions={getTaskActions(sheetTask)}
+            onClose={() => setSheetTask(null)}
+          />
         )}
       </ScrollView>
 
