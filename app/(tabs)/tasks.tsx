@@ -28,7 +28,7 @@ import { useAuthStore } from '../../store/authStore';
 import { updateTask, deleteTask } from '../../services/firebase/firestore';
 import type { Task } from '../../types';
 
-type Filter = 'active' | 'completed' | 'inactive' | 'queued' | 'all';
+type Filter = 'active' | 'completed' | 'inactive' | 'all';
 
 export default function TasksScreen() {
   const { filter: filterParam } = useLocalSearchParams<{ filter?: string }>();
@@ -50,13 +50,21 @@ export default function TasksScreen() {
     if (filter === 'active') return t.status === 'active';
     if (filter === 'completed') return t.status === 'completed';
     if (filter === 'inactive') return t.status === 'inactive';
-    if (filter === 'queued') return t.status === 'queued';
     // 'all' excludes abandoned tasks
     return t.status !== 'abandoned';
   });
 
   const handleTaskPress = (task: Task) => {
     router.push(`/task/${task.id}`);
+  };
+
+  const handleStatusUpdate = (taskId: string, newStatus: Task['status']) => {
+    if (!user) return;
+    const updates: Partial<Task> = { status: newStatus };
+    if (newStatus === 'completed') {
+      updates.completedAt = Date.now();
+    }
+    updateTask(user.uid, taskId, updates);
   };
 
   const openTaskActions = (task: Task) => {
@@ -72,12 +80,6 @@ export default function TasksScreen() {
       actions.push({
         label: 'Set Active',
         onPress: () => updateTask(user.uid, task.id, { status: 'active' }),
-      });
-    }
-    if (task.status !== 'queued') {
-      actions.push({
-        label: 'Set Queued',
-        onPress: () => updateTask(user.uid, task.id, { status: 'queued' }),
       });
     }
     if (task.status !== 'inactive') {
@@ -120,7 +122,6 @@ export default function TasksScreen() {
 
   const FILTERS: { key: Filter; label: string }[] = [
     { key: 'active', label: 'Active' },
-    { key: 'queued', label: 'Queued' },
     { key: 'completed', label: 'Done' },
     { key: 'inactive', label: 'Paused' },
     { key: 'all', label: 'All' },
@@ -158,6 +159,7 @@ export default function TasksScreen() {
             onPress={handleTaskPress}
             onLongPress={openTaskActions}
             onStatusChange={openTaskActions}
+            onStatusUpdate={handleStatusUpdate}
           />
         )}
         contentContainerStyle={[

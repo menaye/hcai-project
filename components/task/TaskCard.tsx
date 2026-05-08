@@ -1,19 +1,21 @@
 import React from 'react';
 import { View, StyleSheet, TouchableOpacity } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { Colors } from '../../constants/colors';
-import { Spacing } from '../../constants/spacing';
+import { Spacing, Radius } from '../../constants/spacing';
 import { Typography } from '../ui/Typography';
 import { ProgressBar } from '../ui/ProgressBar';
 import { Card } from '../ui/Card';
 import { Chip } from '../ui/Chip';
 import { formatDaysUntil, formatRelativeDate } from '../../utils/dateUtils';
-import type { Task, TaskPriority } from '../../types';
+import type { Task, TaskPriority, TaskStatus } from '../../types';
 
 interface TaskCardProps {
   task: Task;
   onPress: (task: Task) => void;
   onLongPress?: (task: Task) => void;
   onStatusChange?: (task: Task) => void;
+  onStatusUpdate?: (taskId: string, newStatus: TaskStatus) => void;
   compact?: boolean;
 }
 
@@ -31,28 +33,36 @@ const PRIORITY_LABEL: Record<TaskPriority, string> = {
   urgent: 'Urgent',
 };
 
-export function TaskCard({ task, onPress, onLongPress, onStatusChange, compact = false }: TaskCardProps) {
+export function TaskCard({ task, onPress, onLongPress, onStatusChange, onStatusUpdate, compact = false }: TaskCardProps) {
   const total = task.steps.length;
   const completed = task.steps.filter((s) => s.status === 'completed').length;
   const progress = total > 0 ? completed / total : 0;
   const isComplete = task.status === 'completed';
   const isInactive = task.status === 'inactive';
 
-  const isQueued = task.status === 'queued';
   const statusColor = isComplete
     ? Colors.success
     : isInactive
     ? Colors.textTertiary
-    : isQueued
-    ? Colors.gold
     : Colors.primary;
   const statusLabel = isComplete
     ? 'Done'
     : isInactive
     ? 'Paused'
-    : isQueued
-    ? 'Queued'
     : 'Active';
+
+  const handleStatusUpdate = (newStatus: TaskStatus) => {
+    if (onStatusUpdate) {
+      onStatusUpdate(task.id, newStatus);
+    }
+  };
+
+  const getActionButtons = (): Array<{ icon: string; status: TaskStatus; show: boolean; tooltip: string }> => {
+    return [
+      { icon: 'pause', status: 'inactive', show: task.status !== 'inactive' && task.status !== 'completed', tooltip: 'Pause' },
+      { icon: 'play', status: 'active', show: task.status !== 'active' && task.status !== 'completed', tooltip: 'Resume' },
+    ];
+  };
 
   return (
     <TouchableOpacity
@@ -133,6 +143,24 @@ export function TaskCard({ task, onPress, onLongPress, onStatusChange, compact =
                 {completed} of {total} steps
               </Typography>
             </View>
+
+            {/* Action buttons */}
+            {!isComplete && onStatusUpdate && (
+              <View style={styles.actionButtonsRow}>
+                {getActionButtons()
+                  .filter((btn) => btn.show)
+                  .map((btn) => (
+                    <TouchableOpacity
+                      key={btn.status}
+                      style={styles.actionIconButton}
+                      onPress={() => handleStatusUpdate(btn.status)}
+                      activeOpacity={0.6}
+                    >
+                      <Ionicons name={btn.icon as any} size={18} color={Colors.primary} />
+                    </TouchableOpacity>
+                  ))}
+              </View>
+            )}
           </>
         )}
       </Card>
@@ -186,5 +214,20 @@ const styles = StyleSheet.create({
   progressLabel: {
     marginTop: Spacing[1],
     textAlign: 'right',
+  },
+  actionButtonsRow: {
+    flexDirection: 'row',
+    gap: Spacing[2],
+    marginTop: Spacing[3],
+  },
+  actionIconButton: {
+    width: 36,
+    height: 36,
+    borderRadius: Radius.md,
+    borderWidth: 1,
+    borderColor: Colors.primary,
+    backgroundColor: Colors.primaryLight,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 });

@@ -79,6 +79,15 @@ export default function HomeScreen() {
     router.push(`/task/${task.id}`);
   };
 
+  const handleStatusUpdate = (taskId: string, newStatus: Task['status']) => {
+    if (!user) return;
+    const updates: Partial<Task> = { status: newStatus };
+    if (newStatus === 'completed') {
+      updates.completedAt = Date.now();
+    }
+    updateTask(user.uid, taskId, updates);
+  };
+
   const confirmDelete = (task: Task) => {
     if (!user) return;
     const completedSteps = task.steps.filter((s) => s.status === 'completed').length;
@@ -109,12 +118,6 @@ export default function HomeScreen() {
       actions.push({
         label: 'Set Active',
         onPress: () => updateTask(user.uid, task.id, { status: 'active' }),
-      });
-    }
-    if (task.status !== 'queued') {
-      actions.push({
-        label: 'Set Queued',
-        onPress: () => updateTask(user.uid, task.id, { status: 'queued' }),
       });
     }
     if (task.status !== 'inactive') {
@@ -187,7 +190,7 @@ export default function HomeScreen() {
           <View style={styles.section}>
             <Label color={Colors.textSecondary} style={styles.sectionLabel}>
               {currentTask.steps.some((s) => s.status === 'completed')
-                ? 'IN PROGRESS'
+                ? 'MOST RECENT TASK'
                 : 'UP NEXT'}
             </Label>
             <TaskCard
@@ -195,6 +198,7 @@ export default function HomeScreen() {
               onPress={handleTaskPress}
               onLongPress={openTaskActions}
               onStatusChange={openTaskActions}
+              onStatusUpdate={handleStatusUpdate}
             />
           </View>
         )}
@@ -217,6 +221,7 @@ export default function HomeScreen() {
                 onPress={handleTaskPress}
                 onLongPress={openTaskActions}
                 onStatusChange={openTaskActions}
+                onStatusUpdate={handleStatusUpdate}
                 compact
               />
             ))}
@@ -227,7 +232,7 @@ export default function HomeScreen() {
         {activeTasks.length === 0 && completedToday === 0 && (
           <Card style={styles.emptyCard} color={Colors.primaryLight}>
             <Body align="center" color={Colors.primary} style={styles.emptyText}>
-              No tasks yet. When you're ready to start something,{'\n'}hit the button above.
+              No active tasks yet. When you're ready to start a task,{'\n'}hit the button above.
             </Body>
           </Card>
         )}

@@ -43,7 +43,6 @@ import { generateId, generateStepId } from '../utils/idUtils';
 function buildSystemContext(tasks: Task[], profile: UserProfile | null): string {
   const relevant = tasks.filter((t) => t.status !== 'abandoned');
   const active = relevant.filter((t) => t.status === 'active');
-  const queued = relevant.filter((t) => t.status === 'queued');
   const inactive = relevant.filter((t) => t.status === 'inactive');
   const completed = tasks.filter((t) => t.status === 'completed').length;
 
@@ -51,7 +50,7 @@ function buildSystemContext(tasks: Task[], profile: UserProfile | null): string 
   if (profile?.displayName) parts.push(`Student: ${profile.displayName}`);
   if (profile?.context) parts.push(`About them: ${profile.context}`);
 
-  const taskData = [...active, ...queued, ...inactive].map((t) => ({
+  const taskData = [...active, ...inactive].map((t) => ({
     id: t.id,
     title: t.title,
     status: t.status,
@@ -61,7 +60,6 @@ function buildSystemContext(tasks: Task[], profile: UserProfile | null): string 
   }
 
   if (active.length > 0) parts.push(`Active tasks: ${active.map((t) => `"${t.title}"`).join(', ')}`);
-  if (queued.length > 0) parts.push(`Queued tasks: ${queued.map((t) => `"${t.title}"`).join(', ')}`);
   if (inactive.length > 0) parts.push(`Paused tasks: ${inactive.map((t) => `"${t.title}"`).join(', ')}`);
   if (completed > 0) parts.push(`Completed: ${completed} task${completed !== 1 ? 's' : ''}`);
 
