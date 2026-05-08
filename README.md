@@ -199,11 +199,11 @@ Branch naming: `feature/`, `fix/`, `design/`, `chore/`, `docs/`
 
 | Name | GitHub |
 |---|---|
-| Michael Enaye | @michaelenaye |
-| Jialin Fu | @jialinfu |
-| Jaya Surya V. M. | @jayasurya |
-| Billy Presume | @billypresume |
-| Yuting Yan | @yutingyan |
+| Michael Enaye | @menaye |
+| Jialin Fu | @jialin-fu07 |
+| Jaya Surya V. M. | @learner-3002 |
+| Billy Presume | @Billy-Presume |
+| Yuting Yan | @YutingYantina |
 
 ---
 
