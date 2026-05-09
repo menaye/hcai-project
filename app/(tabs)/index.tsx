@@ -15,11 +15,11 @@
 
 import React from 'react';
 import {
+  Alert,
   View,
   ScrollView,
   StyleSheet,
   TouchableOpacity,
-  RefreshControl,
 } from 'react-native';
 import { router } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -34,16 +34,21 @@ import { Card } from '../../components/ui/Card';
 import { HumanMascot } from '../../components/mascot/HumanMascot';
 import { StreakBadge } from '../../components/task/StreakBadge';
 import { TaskCard } from '../../components/task/TaskCard';
+import { TaskActionSheet, type TaskActionSheetOption } from '../../components/task/TaskActionSheet';
 import { useAuthStore } from '../../store/authStore';
 import { useTaskStore } from '../../store/taskStore';
+import { updateTask, deleteTask } from '../../services/firebase/firestore';
 import { getGreeting } from '../../utils/dateUtils';
 import type { Task } from '../../types';
 
 export default function HomeScreen() {
-  const { profile } = useAuthStore();
+  const { profile, user } = useAuthStore();
   const { tasks, streak } = useTaskStore();
+  const [sheetTask, setSheetTask] = React.useState<Task | null>(null);
 
-  const activeTasks = tasks.filter((t) => t.status === 'active');
+  const activeTasks = tasks
+    .filter((t) => t.status === 'active')
+    .sort((a, b) => b.updatedAt - a.updatedAt);
   const currentTask = activeTasks[0] ?? null;
   const completedToday = tasks.filter(
     (t) =>
@@ -72,6 +77,68 @@ export default function HomeScreen() {
 
   const handleTaskPress = (task: Task) => {
     router.push(`/task/${task.id}`);
+  };
+
+  const handleStatusUpdate = (taskId: string, newStatus: Task['status']) => {
+    if (!user) return;
+    const updates: Partial<Task> = { status: newStatus };
+    if (newStatus === 'completed') {
+      updates.completedAt = Date.now();
+    }
+    updateTask(user.uid, taskId, updates);
+  };
+
+  const confirmDelete = (task: Task) => {
+    if (!user) return;
+    const completedSteps = task.steps.filter((s) => s.status === 'completed').length;
+    const warningMsg = completedSteps > 0
+      ? `You've already completed ${completedSteps} step${completedSteps > 1 ? 's' : ''} on this task. Deleting it will remove it from your timeline.`
+      : 'This will permanently remove the task and its steps.';
+
+    Alert.alert('Delete task?', warningMsg, [
+      { text: 'Keep it', style: 'cancel' },
+      {
+        text: 'Delete',
+        style: 'destructive',
+        onPress: () => deleteTask(user.uid, task.id),
+      },
+    ]);
+  };
+
+  const openTaskActions = (task: Task) => {
+    if (!user) return;
+    setSheetTask(task);
+  };
+
+  const getTaskActions = (task: Task): TaskActionSheetOption[] => {
+    if (!user) return [];
+    const actions: TaskActionSheetOption[] = [];
+
+    if (task.status !== 'active') {
+      actions.push({
+        label: 'Set Active',
+        onPress: () => updateTask(user.uid, task.id, { status: 'active' }),
+      });
+    }
+    if (task.status !== 'inactive') {
+      actions.push({
+        label: 'Pause',
+        onPress: () => updateTask(user.uid, task.id, { status: 'inactive' }),
+      });
+    }
+    if (task.status !== 'completed') {
+      actions.push({
+        label: 'Mark Complete',
+        onPress: () => updateTask(user.uid, task.id, { status: 'completed', completedAt: Date.now() }),
+      });
+    }
+    actions.push({
+      label: 'Delete task',
+      destructive: true,
+      onPress: () => confirmDelete(task),
+    });
+
+    return actions;
   };
 
   return (
@@ -110,7 +177,7 @@ export default function HomeScreen() {
 
         {/* Primary CTA */}
         <Button
-          label="Start something new"
+          label="Start a new task"
           onPress={() => router.push('/task/new')}
           size="lg"
           fullWidth
@@ -122,9 +189,17 @@ export default function HomeScreen() {
         {currentTask && (
           <View style={styles.section}>
             <Label color={Colors.textSecondary} style={styles.sectionLabel}>
-              IN PROGRESS
+              {currentTask.steps.some((s) => s.status === 'completed')
+                ? 'MOST RECENT TASK'
+                : 'UP NEXT'}
             </Label>
-            <TaskCard task={currentTask} onPress={handleTaskPress} />
+            <TaskCard
+              task={currentTask}
+              onPress={handleTaskPress}
+              onLongPress={openTaskActions}
+              onStatusChange={openTaskActions}
+              onStatusUpdate={handleStatusUpdate}
+            />
           </View>
         )}
 
@@ -140,7 +215,15 @@ export default function HomeScreen() {
               </TouchableOpacity>
             </View>
             {activeTasks.slice(1, 3).map((task) => (
-              <TaskCard key={task.id} task={task} onPress={handleTaskPress} compact />
+              <TaskCard
+                key={task.id}
+                task={task}
+                onPress={handleTaskPress}
+                onLongPress={openTaskActions}
+                onStatusChange={openTaskActions}
+                onStatusUpdate={handleStatusUpdate}
+                compact
+              />
             ))}
           </View>
         )}
@@ -149,7 +232,7 @@ export default function HomeScreen() {
         {activeTasks.length === 0 && completedToday === 0 && (
           <Card style={styles.emptyCard} color={Colors.primaryLight}>
             <Body align="center" color={Colors.primary} style={styles.emptyText}>
-              No tasks yet. When you're ready to start something,{'\n'}hit the button above.
+              No active tasks yet. When you're ready to start a task,{'\n'}hit the button above.
             </Body>
           </Card>
         )}
@@ -157,24 +240,35 @@ export default function HomeScreen() {
         {/* Stats footer */}
         {streak && (
           <View style={styles.statsRow}>
-            <StatPill icon="checkmark-done" label={`${streak.totalTasksCompleted} done`} />
-            <StatPill icon="footsteps" label={`${streak.totalStepsCompleted} steps`} />
-            {streak.longestStreak > 0 && (
-              <StatPill icon="flame" label={`${streak.longestStreak} best streak`} />
-            )}
+            <StatPill
+              icon="checkmark-done"
+              label={`${streak.totalTasksCompleted} done`}
+              onPress={() => router.push({ pathname: '/(tabs)/tasks', params: { filter: 'completed' } })}
+            />
           </View>
         )}
+
+        {sheetTask && (
+          <TaskActionSheet
+            visible={!!sheetTask}
+            title={sheetTask.title}
+            actions={getTaskActions(sheetTask)}
+            onClose={() => setSheetTask(null)}
+          />
+        )}
       </ScrollView>
+
     </SafeAreaView>
   );
 }
 
-function StatPill({ icon, label }: { icon: string; label: string }) {
+function StatPill({ icon, label, onPress }: { icon: string; label: string; onPress?: () => void }) {
+  const Wrapper = onPress ? TouchableOpacity : View;
   return (
-    <View style={styles.statPill}>
-      <Ionicons name={icon as any} size={13} color={Colors.textSecondary} />
-      <BodySmall color={Colors.textSecondary}>{label}</BodySmall>
-    </View>
+    <Wrapper onPress={onPress} activeOpacity={0.7} style={styles.statPill}>
+      <Ionicons name={icon as any} size={13} color={onPress ? Colors.primary : Colors.textSecondary} />
+      <BodySmall color={onPress ? Colors.primary : Colors.textSecondary}>{label}</BodySmall>
+    </Wrapper>
   );
 }
 

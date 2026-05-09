@@ -52,7 +52,7 @@ export default function WelcomeScreen() {
     setError('');
     try {
       await signInWithEmail(email, password);
-      router.replace('/(tabs)');
+      router.replace('/(auth)/ai-setup' as any);
     } catch (e: any) {
       setError('Invalid email or password.');
     } finally {

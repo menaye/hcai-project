@@ -1,20 +1,21 @@
 /**
- * HumanMascot – the Human.exe companion character
+ * HumanMascot – meet Sid, the Human.exe sloth companion
  *
- * A simple, friendly blob character inspired by the rough UI sketches.
- * Rendered with pure React Native shapes (no external image needed),
- * so it works immediately on all platforms without asset bundling.
+ * A cute cartoon sloth inspired by friendly app mascots:
+ *  - Warm tan fur with earthy gradient body
+ *  - Huge eyes with distinctive dark eye-patch fur (classic sloth)
+ *  - Gentle permanent smile, rosy cheeks
+ *  - Long curved arms
+ *  - Round ears with inner pink
+ *  - Periodic blink + state animations
  *
- * States:
- *  - idle: neutral, present
- *  - thinking: small animation hint (loading)
- *  - happy: celebrating a step completion
- *  - encouraging: supportive nudge
+ * States: idle | thinking | happy | encouraging
+ * Sizes:  sm (64) | md (100) | lg (140)
  */
 
 import React, { useEffect, useRef } from 'react';
 import { View, StyleSheet, Animated, Easing } from 'react-native';
-import { Colors } from '../../constants/colors';
+import { LinearGradient } from 'expo-linear-gradient';
 
 type MascotState = 'idle' | 'thinking' | 'happy' | 'encouraging';
 type MascotSize = 'sm' | 'md' | 'lg';
@@ -26,25 +27,43 @@ interface HumanMascotProps {
 
 const sizes: Record<MascotSize, number> = { sm: 64, md: 100, lg: 140 };
 
+// Sloth color palette
+const S = {
+  fur: '#C89060',
+  furDark: '#9B6E47',
+  furLight: '#E8D0A0',
+  patch: '#4A2810',     // dark rings around eyes — the sloth signature
+  sclera: '#FFF8EE',
+  iris: '#3E6820',      // earthy green
+  pupil: '#160C04',
+  nose: '#D4826A',
+  mouth: '#9B6040',
+  ear: '#B07848',
+  innerEar: '#E09888',
+  cheek: '#E8907A',
+  armTip: '#8B5E38',
+};
+
 export function HumanMascot({ state = 'idle', size = 'md' }: HumanMascotProps) {
   const dim = sizes[size];
   const bobAnim = useRef(new Animated.Value(0)).current;
   const scaleAnim = useRef(new Animated.Value(1)).current;
   const rotateAnim = useRef(new Animated.Value(0)).current;
+  const blinkAnim = useRef(new Animated.Value(1)).current;
 
+  // Gentle bob — always on
   useEffect(() => {
-    // Gentle bob animation — always on
     const bob = Animated.loop(
       Animated.sequence([
         Animated.timing(bobAnim, {
-          toValue: -6,
-          duration: 1200,
+          toValue: -5,
+          duration: 1600,
           easing: Easing.inOut(Easing.sin),
           useNativeDriver: true,
         }),
         Animated.timing(bobAnim, {
           toValue: 0,
-          duration: 1200,
+          duration: 1600,
           easing: Easing.inOut(Easing.sin),
           useNativeDriver: true,
         }),
@@ -54,20 +73,35 @@ export function HumanMascot({ state = 'idle', size = 'md' }: HumanMascotProps) {
     return () => bob.stop();
   }, []);
 
+  // Blink every 3–5 seconds
+  useEffect(() => {
+    let timeout: ReturnType<typeof setTimeout>;
+    const scheduleBlink = () => {
+      const delay = 2800 + Math.random() * 2200;
+      timeout = setTimeout(() => {
+        Animated.sequence([
+          Animated.timing(blinkAnim, { toValue: 0.05, duration: 80, useNativeDriver: true }),
+          Animated.timing(blinkAnim, { toValue: 1, duration: 110, useNativeDriver: true }),
+        ]).start(() => scheduleBlink());
+      }, delay);
+    };
+    scheduleBlink();
+    return () => clearTimeout(timeout);
+  }, []);
+
+  // State-based animations
   useEffect(() => {
     if (state === 'happy') {
-      // Bounce when happy
       Animated.sequence([
-        Animated.spring(scaleAnim, { toValue: 1.18, useNativeDriver: true, damping: 6 }),
-        Animated.spring(scaleAnim, { toValue: 1, useNativeDriver: true, damping: 8 }),
+        Animated.spring(scaleAnim, { toValue: 1.12, useNativeDriver: true, damping: 6 }),
+        Animated.spring(scaleAnim, { toValue: 1, useNativeDriver: true, damping: 9 }),
       ]).start();
     } else if (state === 'thinking') {
-      // Gentle tilt
       Animated.loop(
         Animated.sequence([
-          Animated.timing(rotateAnim, { toValue: 1, duration: 800, useNativeDriver: true }),
-          Animated.timing(rotateAnim, { toValue: -1, duration: 800, useNativeDriver: true }),
-          Animated.timing(rotateAnim, { toValue: 0, duration: 400, useNativeDriver: true }),
+          Animated.timing(rotateAnim, { toValue: 1, duration: 900, useNativeDriver: true }),
+          Animated.timing(rotateAnim, { toValue: -1, duration: 900, useNativeDriver: true }),
+          Animated.timing(rotateAnim, { toValue: 0, duration: 450, useNativeDriver: true }),
         ]),
       ).start();
     } else {
@@ -78,195 +112,400 @@ export function HumanMascot({ state = 'idle', size = 'md' }: HumanMascotProps) {
 
   const rotate = rotateAnim.interpolate({
     inputRange: [-1, 1],
-    outputRange: ['-8deg', '8deg'],
+    outputRange: ['-6deg', '6deg'],
   });
 
-  // Eye style varies by state
   const isHappy = state === 'happy';
   const isThinking = state === 'thinking';
+  const isEncouraging = state === 'encouraging';
 
-  const eyeSize = dim * 0.11;
-  const eyeY = dim * 0.38;
-  const eyeOffsetX = dim * 0.18;
+  // Proportions
+  const armLen = dim * 0.30;
+  const armThick = dim * 0.10;
+  const containerW = dim + armLen * 1.5;
+
+  // Dark eye-patch sizing
+  const patchW = dim * 0.22;
+  const patchH = dim * 0.20;
+  const patchY = dim * 0.29;
+  const patchOffsetX = dim * 0.188;
+
+  // Eye sizing (centered inside the patch)
+  const eyeSize = dim * 0.125;
+  const eyeY = patchY + patchH * 0.22;
+  const eyeOffsetX = patchOffsetX;
+  const irisSize = eyeSize * 0.64;
+  const pupilSize = irisSize * 0.54;
+  const highlightSize = pupilSize * 0.36;
+
+  // Nose
+  const noseW = dim * 0.10;
+  const noseH = dim * 0.065;
+  const noseY = dim * 0.54;
+
+  // Mouth
+  const mouthY = dim * 0.64;
+
+  // Ear
+  const earSize = dim * 0.14;
 
   return (
     <Animated.View
       style={[
         styles.container,
         {
-          width: dim,
-          height: dim * 1.05,
+          width: containerW,
+          height: dim * 1.1,
           transform: [
             { translateY: bobAnim },
             { scale: scaleAnim },
-            { rotate: rotate },
+            { rotate },
           ],
         },
       ]}
     >
-      {/* Body – soft rounded blob */}
+      {/* Left arm */}
       <View
-        style={[
-          styles.body,
-          {
+        style={{
+          position: 'absolute',
+          left: 0,
+          top: dim * 0.46,
+          width: armLen,
+          height: armThick,
+          borderRadius: armThick / 2,
+          backgroundColor: S.furDark,
+          transform: [{ rotate: '28deg' }],
+        }}
+      />
+      {/* Left claw nub */}
+      <View
+        style={{
+          position: 'absolute',
+          left: armLen * 0.02,
+          top: dim * 0.46 + armLen * 0.48 - armThick * 0.3,
+          width: armThick * 0.7,
+          height: armThick * 0.7,
+          borderRadius: armThick,
+          backgroundColor: S.armTip,
+        }}
+      />
+
+      {/* Right arm */}
+      <View
+        style={{
+          position: 'absolute',
+          right: 0,
+          top: dim * 0.46,
+          width: armLen,
+          height: armThick,
+          borderRadius: armThick / 2,
+          backgroundColor: S.furDark,
+          transform: [{ rotate: '-28deg' }],
+        }}
+      />
+      {/* Right claw nub */}
+      <View
+        style={{
+          position: 'absolute',
+          right: armLen * 0.02,
+          top: dim * 0.46 + armLen * 0.48 - armThick * 0.3,
+          width: armThick * 0.7,
+          height: armThick * 0.7,
+          borderRadius: armThick,
+          backgroundColor: S.armTip,
+        }}
+      />
+
+      {/* Head + body (centered between arms) */}
+      <View
+        style={{
+          position: 'absolute',
+          left: armLen * 0.65,
+          top: 0,
+          width: dim,
+          height: dim,
+        }}
+      >
+        {/* Left ear outer */}
+        <View
+          style={{
+            position: 'absolute',
+            width: earSize,
+            height: earSize,
+            borderRadius: earSize / 2,
+            backgroundColor: S.ear,
+            top: dim * 0.03,
+            left: -earSize * 0.38,
+            zIndex: 0,
+          }}
+        />
+        <View
+          style={{
+            position: 'absolute',
+            width: earSize * 0.52,
+            height: earSize * 0.52,
+            borderRadius: earSize,
+            backgroundColor: S.innerEar,
+            top: dim * 0.03 + earSize * 0.24,
+            left: -earSize * 0.38 + earSize * 0.24,
+            zIndex: 0,
+          }}
+        />
+
+        {/* Right ear outer */}
+        <View
+          style={{
+            position: 'absolute',
+            width: earSize,
+            height: earSize,
+            borderRadius: earSize / 2,
+            backgroundColor: S.ear,
+            top: dim * 0.03,
+            right: -earSize * 0.38,
+            zIndex: 0,
+          }}
+        />
+        <View
+          style={{
+            position: 'absolute',
+            width: earSize * 0.52,
+            height: earSize * 0.52,
+            borderRadius: earSize,
+            backgroundColor: S.innerEar,
+            top: dim * 0.03 + earSize * 0.24,
+            right: -earSize * 0.38 + earSize * 0.24,
+            zIndex: 0,
+          }}
+        />
+
+        {/* Main head gradient */}
+        <LinearGradient
+          colors={[S.furLight, S.fur, S.furDark]}
+          start={{ x: 0.25, y: 0 }}
+          end={{ x: 0.75, y: 1 }}
+          style={{
+            position: 'absolute',
             width: dim,
             height: dim,
             borderRadius: dim * 0.48,
-            backgroundColor: Colors.primary,
-          },
-        ]}
-      >
-        {/* Left eye */}
-        <View
-          style={[
-            styles.eye,
-            {
+            zIndex: 1,
+            overflow: 'hidden',
+          }}
+        >
+          {/* Belly / lighter center patch */}
+          <View
+            style={{
+              position: 'absolute',
+              width: dim * 0.52,
+              height: dim * 0.48,
+              borderRadius: dim * 0.26,
+              backgroundColor: S.furLight,
+              top: dim * 0.46,
+              left: dim * 0.24,
+              opacity: 0.55,
+            }}
+          />
+
+          {/* Left dark eye patch */}
+          <View
+            style={{
+              position: 'absolute',
+              width: patchW,
+              height: patchH,
+              borderRadius: patchH * 0.5,
+              backgroundColor: S.patch,
+              top: patchY,
+              left: dim / 2 - patchOffsetX - patchW / 2,
+              transform: [{ rotate: isHappy ? '-10deg' : '0deg' }],
+            }}
+          />
+          {/* Right dark eye patch */}
+          <View
+            style={{
+              position: 'absolute',
+              width: patchW,
+              height: patchH,
+              borderRadius: patchH * 0.5,
+              backgroundColor: S.patch,
+              top: patchY,
+              left: dim / 2 + patchOffsetX - patchW / 2,
+              transform: [{ rotate: isHappy ? '10deg' : '0deg' }],
+            }}
+          />
+
+          {/* Left eye — sclera */}
+          <Animated.View
+            style={{
+              position: 'absolute',
               width: eyeSize,
-              height: isHappy ? eyeSize * 0.6 : eyeSize,
-              borderRadius: eyeSize,
-              backgroundColor: Colors.surface,
+              height: isHappy ? eyeSize * 0.68 : eyeSize,
+              borderRadius: eyeSize / 2,
+              backgroundColor: S.sclera,
               top: eyeY,
               left: dim / 2 - eyeOffsetX - eyeSize / 2,
-            },
-          ]}
-        >
-          {/* Pupil */}
-          <View
-            style={[
-              styles.pupil,
-              {
-                width: eyeSize * 0.45,
-                height: eyeSize * 0.45,
-                borderRadius: eyeSize,
-                backgroundColor: Colors.textPrimary,
-                top: isHappy ? eyeSize * 0.05 : eyeSize * 0.25,
-                left: eyeSize * 0.25,
-              },
-            ]}
-          />
-        </View>
+              overflow: 'hidden',
+              alignItems: 'center',
+              justifyContent: 'center',
+              transform: [{ scaleY: blinkAnim }],
+            }}
+          >
+            <View
+              style={{
+                width: irisSize,
+                height: irisSize,
+                borderRadius: irisSize / 2,
+                backgroundColor: S.iris,
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+            >
+              <View
+                style={{
+                  width: pupilSize,
+                  height: pupilSize,
+                  borderRadius: pupilSize / 2,
+                  backgroundColor: S.pupil,
+                  alignItems: 'flex-start',
+                  justifyContent: 'flex-start',
+                }}
+              >
+                <View
+                  style={{
+                    position: 'absolute',
+                    top: 1,
+                    left: 1,
+                    width: highlightSize,
+                    height: highlightSize,
+                    borderRadius: highlightSize / 2,
+                    backgroundColor: '#FFFFFF',
+                    opacity: 0.92,
+                  }}
+                />
+              </View>
+            </View>
+          </Animated.View>
 
-        {/* Right eye */}
-        <View
-          style={[
-            styles.eye,
-            {
+          {/* Right eye — sclera */}
+          <Animated.View
+            style={{
+              position: 'absolute',
               width: eyeSize,
-              height: isHappy ? eyeSize * 0.6 : eyeSize,
-              borderRadius: eyeSize,
-              backgroundColor: Colors.surface,
+              height: isHappy ? eyeSize * 0.68 : eyeSize,
+              borderRadius: eyeSize / 2,
+              backgroundColor: S.sclera,
               top: eyeY,
               left: dim / 2 + eyeOffsetX - eyeSize / 2,
-            },
-          ]}
-        >
-          <View
-            style={[
-              styles.pupil,
-              {
-                width: eyeSize * 0.45,
-                height: eyeSize * 0.45,
-                borderRadius: eyeSize,
-                backgroundColor: Colors.textPrimary,
-                top: isHappy ? eyeSize * 0.05 : eyeSize * 0.25,
-                left: eyeSize * 0.25,
-              },
-            ]}
-          />
-        </View>
+              overflow: 'hidden',
+              alignItems: 'center',
+              justifyContent: 'center',
+              transform: [{ scaleY: blinkAnim }],
+            }}
+          >
+            <View
+              style={{
+                width: irisSize,
+                height: irisSize,
+                borderRadius: irisSize / 2,
+                backgroundColor: S.iris,
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+            >
+              <View
+                style={{
+                  width: pupilSize,
+                  height: pupilSize,
+                  borderRadius: pupilSize / 2,
+                  backgroundColor: S.pupil,
+                  alignItems: 'flex-start',
+                  justifyContent: 'flex-start',
+                }}
+              >
+                <View
+                  style={{
+                    position: 'absolute',
+                    top: 1,
+                    left: 1,
+                    width: highlightSize,
+                    height: highlightSize,
+                    borderRadius: highlightSize / 2,
+                    backgroundColor: '#FFFFFF',
+                    opacity: 0.92,
+                  }}
+                />
+              </View>
+            </View>
+          </Animated.View>
 
-        {/* Mouth */}
+          {/* Nose */}
+          <View
+            style={{
+              position: 'absolute',
+              width: noseW,
+              height: noseH,
+              borderRadius: noseH / 2,
+              backgroundColor: S.nose,
+              top: noseY,
+              left: dim / 2 - noseW / 2,
+            }}
+          />
+
+          {/* Rosy cheeks */}
+          <View
+            style={{
+              position: 'absolute',
+              width: dim * 0.13,
+              height: dim * 0.07,
+              borderRadius: dim,
+              top: dim * 0.52,
+              left: dim * 0.07,
+              backgroundColor: S.cheek,
+              opacity: isHappy ? 0.5 : 0.22,
+            }}
+          />
+          <View
+            style={{
+              position: 'absolute',
+              width: dim * 0.13,
+              height: dim * 0.07,
+              borderRadius: dim,
+              top: dim * 0.52,
+              right: dim * 0.07,
+              backgroundColor: S.cheek,
+              opacity: isHappy ? 0.5 : 0.22,
+            }}
+          />
+
+        </LinearGradient>
+
+        {/* Mouth — rendered outside LinearGradient so overflow:hidden clip works correctly */}
         {isHappy ? (
-          /* Smile arc */
-          <View
-            style={{
-              position: 'absolute',
-              width: dim * 0.28,
-              height: dim * 0.14,
-              borderBottomLeftRadius: dim * 0.14,
-              borderBottomRightRadius: dim * 0.14,
-              borderWidth: dim * 0.035,
-              borderTopWidth: 0,
-              borderColor: Colors.surface,
-              top: dim * 0.56,
-              left: dim * 0.5 - dim * 0.14,
-            }}
-          />
+          <View style={{ position: 'absolute', width: dim * 0.38, height: dim * 0.18, top: mouthY, left: dim / 2 - dim * 0.19, overflow: 'hidden' }}>
+            <View style={{ position: 'absolute', bottom: 0, width: dim * 0.38, height: dim * 0.38, borderRadius: dim * 0.19, borderWidth: dim * 0.032, borderColor: S.mouth }} />
+          </View>
         ) : isThinking ? (
-          /* Neutral squiggly */
-          <View
-            style={{
-              position: 'absolute',
-              width: dim * 0.22,
-              height: dim * 0.025,
-              backgroundColor: Colors.surface,
-              borderRadius: dim,
-              top: dim * 0.6,
-              left: dim * 0.5 - dim * 0.11,
-              opacity: 0.8,
-            }}
-          />
-        ) : (
-          /* Default slight smile */
-          <View
-            style={{
-              position: 'absolute',
-              width: dim * 0.2,
-              height: dim * 0.1,
-              borderBottomLeftRadius: dim * 0.1,
-              borderBottomRightRadius: dim * 0.1,
-              borderWidth: dim * 0.03,
-              borderTopWidth: 0,
-              borderColor: Colors.surface,
-              top: dim * 0.58,
-              left: dim * 0.5 - dim * 0.1,
-              opacity: 0.9,
-            }}
-          />
-        )}
-
-        {/* Cheek blush (happy state) */}
-        {isHappy && (
-          <>
-            <View style={[styles.blush, {
-              width: dim * 0.14,
-              height: dim * 0.07,
-              borderRadius: dim,
-              top: dim * 0.54,
-              left: dim * 0.14,
-              backgroundColor: Colors.accent,
-              opacity: 0.35,
-            }]} />
-            <View style={[styles.blush, {
-              width: dim * 0.14,
-              height: dim * 0.07,
-              borderRadius: dim,
-              top: dim * 0.54,
-              right: dim * 0.14,
-              backgroundColor: Colors.accent,
-              opacity: 0.35,
-            }]} />
-          </>
-        )}
-
-        {/* Thinking dots */}
-        {isThinking && (
-          <View style={{
-            position: 'absolute',
-            flexDirection: 'row',
-            gap: dim * 0.04,
-            top: dim * 0.58,
-            left: dim * 0.5 - dim * 0.12,
-          }}>
+          <View style={{ position: 'absolute', flexDirection: 'row', gap: dim * 0.04, top: mouthY + dim * 0.07, left: dim / 2 - dim * 0.1 }}>
             {[0, 1, 2].map((i) => (
-              <ThinkingDot key={i} delay={i * 200} size={dim * 0.045} />
+              <ThinkingDot key={i} delay={i * 200} size={dim * 0.05} />
             ))}
+          </View>
+        ) : isEncouraging ? (
+          <View style={{ position: 'absolute', width: dim * 0.2, height: dim * 0.13, borderRadius: dim * 0.065, backgroundColor: S.mouth, top: mouthY, left: dim / 2 - dim * 0.1, opacity: 0.85 }} />
+        ) : (
+          // Idle gentle smile
+          <View style={{ position: 'absolute', width: dim * 0.30, height: dim * 0.13, top: mouthY, left: dim / 2 - dim * 0.15, overflow: 'hidden' }}>
+            <View style={{ position: 'absolute', bottom: 0, width: dim * 0.30, height: dim * 0.30, borderRadius: dim * 0.15, borderWidth: dim * 0.030, borderColor: S.mouth }} />
           </View>
         )}
       </View>
 
-      {/* Shadow */}
-      <View style={[styles.shadow, { width: dim * 0.7, marginTop: 4 }]} />
+      {/* Shadow ellipse */}
+      <View
+        style={[
+          styles.shadow,
+          { width: dim * 0.6, marginTop: 4, alignSelf: 'center' },
+        ]}
+      />
     </Animated.View>
   );
 }
@@ -278,9 +517,9 @@ function ThinkingDot({ delay, size }: { delay: number; size: number }) {
     Animated.loop(
       Animated.sequence([
         Animated.delay(delay),
-        Animated.timing(anim, { toValue: -4, duration: 300, useNativeDriver: true }),
-        Animated.timing(anim, { toValue: 0, duration: 300, useNativeDriver: true }),
-        Animated.delay(600),
+        Animated.timing(anim, { toValue: -4, duration: 280, useNativeDriver: true }),
+        Animated.timing(anim, { toValue: 0, duration: 280, useNativeDriver: true }),
+        Animated.delay(700),
       ]),
     ).start();
   }, [delay]);
@@ -290,8 +529,8 @@ function ThinkingDot({ delay, size }: { delay: number; size: number }) {
       style={{
         width: size,
         height: size,
-        borderRadius: size,
-        backgroundColor: Colors.surface,
+        borderRadius: size / 2,
+        backgroundColor: S.mouth,
         opacity: 0.8,
         transform: [{ translateY: anim }],
       }}
@@ -302,26 +541,12 @@ function ThinkingDot({ delay, size }: { delay: number; size: number }) {
 const styles = StyleSheet.create({
   container: {
     alignItems: 'center',
-  },
-  body: {
     position: 'relative',
-    overflow: 'hidden',
-  },
-  eye: {
-    position: 'absolute',
-    overflow: 'hidden',
-  },
-  pupil: {
-    position: 'absolute',
-  },
-  blush: {
-    position: 'absolute',
   },
   shadow: {
-    height: 10,
-    borderRadius: 10,
-    backgroundColor: Colors.primary,
-    opacity: 0.15,
-    alignSelf: 'center',
+    height: 8,
+    borderRadius: 8,
+    backgroundColor: S.furDark,
+    opacity: 0.14,
   },
 });

@@ -6,11 +6,11 @@
  * Custom tab bar style — minimal, clean, consistent with design system.
  */
 
-import { Tabs } from 'expo-router';
-import { View, StyleSheet, Platform } from 'react-native';
+import { Tabs, router } from 'expo-router';
+import { View, StyleSheet, Platform, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors } from '../../constants/colors';
-import { Radius, Shadow, Spacing } from '../../constants/spacing';
+import { Radius, Shadow, Spacing, Layout } from '../../constants/spacing';
 import { FontSize } from '../../constants/typography';
 
 type IconName = keyof typeof Ionicons.glyphMap;
@@ -35,6 +35,7 @@ function TabIcon({ name, focused, label }: TabIconProps) {
 
 export default function TabLayout() {
   return (
+    <View style={styles.wrapper}>
     <Tabs
       screenOptions={{
         headerShown: false,
@@ -82,6 +83,19 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
+        name="stats"
+        options={{
+          title: 'Stats',
+          tabBarIcon: ({ focused }) => (
+            <TabIcon
+              name={focused ? 'bar-chart' : 'bar-chart-outline'}
+              focused={focused}
+              label="Stats"
+            />
+          ),
+        }}
+      />
+      <Tabs.Screen
         name="settings"
         options={{
           title: 'Settings',
@@ -95,6 +109,16 @@ export default function TabLayout() {
         }}
       />
     </Tabs>
+
+      {/* Persistent chat FAB — visible on all tabs */}
+      <TouchableOpacity
+        style={styles.chatFab}
+        onPress={() => router.push('/chat' as any)}
+        activeOpacity={0.85}
+      >
+        <Ionicons name="chatbubble-ellipses" size={22} color="#FFFFFF" />
+      </TouchableOpacity>
+    </View>
   );
 }
 
@@ -124,5 +148,21 @@ const styles = StyleSheet.create({
   },
   tabItemActive: {
     backgroundColor: Colors.primaryLight,
+  },
+  wrapper: {
+    flex: 1,
+  },
+  chatFab: {
+    position: 'absolute',
+    bottom: Platform.OS === 'ios' ? 108 : 84,
+    left: Layout.screenPaddingH,
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    backgroundColor: Colors.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 100,
+    ...Shadow.lg,
   },
 });

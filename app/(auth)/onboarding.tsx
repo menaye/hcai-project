@@ -47,7 +47,7 @@ export default function OnboardingScreen() {
         context: context.trim() || undefined,
         onboardingComplete: true,
       });
-      router.replace('/(tabs)');
+      router.replace('/(auth)/ai-setup' as any);
     } catch (e) {
       console.error('Onboarding error:', e);
     } finally {
@@ -63,7 +63,7 @@ export default function OnboardingScreen() {
         displayName: displayName.trim() || 'Student',
         onboardingComplete: true,
       });
-      router.replace('/(tabs)');
+      router.replace('/(auth)/ai-setup' as any);
     } catch (e) {
       console.error('Skip error:', e);
     } finally {

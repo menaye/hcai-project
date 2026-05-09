@@ -115,7 +115,7 @@ function mockUpdateTaskStep(
     steps,
     status: allComplete ? 'completed' : 'active',
     updatedAt: Date.now(),
-    ...(allComplete ? { completedAt: Date.now() } : {}),
+    completedAt: allComplete ? Date.now() : undefined,
   };
   notifyTaskSubscribers(uid);
   return Promise.resolve();
@@ -283,7 +283,7 @@ export async function updateTaskStep(
     steps,
     status: allComplete ? 'completed' : 'active',
     updatedAt: Date.now(),
-    ...(allComplete ? { completedAt: Date.now() } : {}),
+    completedAt: allComplete ? Date.now() : null,
   });
 }
 

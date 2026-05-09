@@ -216,9 +216,11 @@ export const taskSubscribers = new SubscriberMap<Task[]>();
 export const streakSubscribers = new SubscriberMap<StreakData>();
 export const authSubscribers: Callback<any>[] = [];
 
-/** Notify all task subscribers for a user */
+/** Notify all task subscribers for a user — sorted newest-updated first */
 export function notifyTaskSubscribers(uid: string) {
-  const tasks = Object.values(mockTasks).filter((t) => t.userId === uid);
+  const tasks = Object.values(mockTasks)
+    .filter((t) => t.userId === uid)
+    .sort((a, b) => b.updatedAt - a.updatedAt);
   taskSubscribers.notify(uid, tasks);
 }
 
